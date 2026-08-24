@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: NextGen_Online_Banking
+
+  datasource:
+    url: jdbc:h2:mem:nextgenbanking
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: Hlatse@11
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+server:
+  port: 8080
