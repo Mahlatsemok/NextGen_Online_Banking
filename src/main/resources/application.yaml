@@ -6,7 +6,7 @@ spring:
     url: jdbc:h2:mem:nextgenbanking
     driver-class-name: org.h2.Driver
     username: sa
-    password: Hlatse@11
+    password: 
 
   jpa:
     hibernate:
