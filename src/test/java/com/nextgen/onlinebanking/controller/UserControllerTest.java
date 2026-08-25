@@ -104,21 +104,73 @@ class UserControllerTest {
     @Test
     void shouldRejectBlankPassword() throws Exception {
 
-        RegisterRequest request = new RegisterRequest(
-                "John",
-                "Doe",
-                "john@example.com",
-                ""
-        );
+            RegisterRequest request = new RegisterRequest(
+                            "John",
+                            "Doe",
+                            "john@example.com",
+                            "");
 
-        mockMvc.perform(
-                post("/api/auth/register")
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request))
-        )
-        .andExpect(status().isBadRequest());
+            mockMvc.perform(
+                            post("/api/auth/register")
+                                            .with(csrf())
+                                            .contentType(MediaType.APPLICATION_JSON)
+                                            .content(objectMapper.writeValueAsString(request)))
+                            .andExpect(status().isBadRequest());
 
-        verifyNoInteractions(userService);
+            verifyNoInteractions(userService);
     }
+    
+    @Test
+    void shouldReturnValidationErrorsForInvalidRequest() throws Exception {
+
+            RegisterRequest request = new RegisterRequest(
+                            "",
+                            "",
+                            "invalid-email",
+                            "");
+
+            mockMvc.perform(
+                            post("/api/auth/register")
+                                            .with(csrf())
+                                            .contentType(MediaType.APPLICATION_JSON)
+                                            .content(objectMapper.writeValueAsString(request)))
+                            .andExpect(status().isBadRequest())
+                            .andExpect(jsonPath("$.status").value(400))
+                            .andExpect(jsonPath("$.message").value("Validation failed"))
+                            .andExpect(jsonPath("$.errors.firstName").exists())
+                            .andExpect(jsonPath("$.errors.lastName").exists())
+                            .andExpect(jsonPath("$.errors.email").exists())
+                            .andExpect(jsonPath("$.errors.password").exists());
+
+            verifyNoInteractions(userService);
+    }
+
+    @Test
+    void shouldReturnConflictWhenEmailAlreadyExists() throws Exception {
+
+            RegisterRequest request = new RegisterRequest(
+                            "John",
+                            "Doe",
+                            "existing@example.com",
+                            "password123");
+
+            when(userService.registerUser(
+                            anyString(),
+                            anyString(),
+                            anyString(),
+                            anyString())).thenThrow(
+                                            new IllegalArgumentException("Email already registered"));
+
+            mockMvc.perform(
+                            post("/api/auth/register")
+                                            .with(csrf())
+                                            .contentType(MediaType.APPLICATION_JSON)
+                                            .content(objectMapper.writeValueAsString(request)))
+                            .andExpect(status().isConflict())
+                            .andExpect(jsonPath("$.status").value(409))
+                            .andExpect(jsonPath("$.message")
+                                            .value("Email already registered"));
+    }
+
+
 }
