@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -60,12 +61,58 @@ class UserRepositoryTest {
                 "Peter",
                 "Jones",
                 "peter@example.com",
-                "password789"
-        );
+                "password789");
 
         userRepository.save(user);
 
         assertTrue(userRepository.existsByEmail("peter@example.com"));
         assertFalse(userRepository.existsByEmail("unknown@example.com"));
     }
+    
+    @Test
+    void shouldSetCreatedAtAndUpdatedAtWhenUserIsSaved() {
+
+        User user = new User(
+                "John",
+                "Doe",
+                "timestamp@example.com",
+                "hashedPassword");
+
+        User savedUser = userRepository.saveAndFlush(user);
+
+        assertNotNull(savedUser.getCreatedAt());
+        assertNotNull(savedUser.getUpdatedAt());
+
+        assertEquals(
+                savedUser.getCreatedAt(),
+                savedUser.getUpdatedAt());
+    }
+
+    @Test
+    void shouldUpdateUpdatedAtWithoutChangingCreatedAt() throws InterruptedException {
+
+        User user = new User(
+            "Jane",
+            "Doe",
+            "timestamps@example.com",
+            "hashedPassword");
+
+        User savedUser = userRepository.saveAndFlush(user);
+
+        LocalDateTime createdAt = savedUser.getCreatedAt();
+        LocalDateTime firstUpdatedAt = savedUser.getUpdatedAt();
+
+        Thread.sleep(10);
+
+        savedUser.setFirstName("Janet");
+
+        User updatedUser = userRepository.saveAndFlush(savedUser);
+
+        assertEquals(createdAt, updatedUser.getCreatedAt());
+        assertNotNull(updatedUser.getUpdatedAt());
+
+        assertTrue(
+            updatedUser.getUpdatedAt().isAfter(firstUpdatedAt));
+    }
+
 }
