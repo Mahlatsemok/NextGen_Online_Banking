@@ -119,41 +119,76 @@ class AuthenticationServiceTest {
     void shouldRejectIncorrectPassword() {
 
         User user = new User(
+             "John",
+             "Doe",
+             "john@example.com",
+             "$2a$10$hashedPassword");
+
+        when(userRepository.findByEmail("john@example.com"))
+             .thenReturn(Optional.of(user));
+
+        when(passwordEncoder.matches(
+             "wrongPassword",
+             user.getPassword())).thenReturn(false);
+
+        IllegalArgumentException exception = assertThrows(
+             IllegalArgumentException.class,
+             () -> authenticationService.authenticate(
+                     "john@example.com",
+                     "wrongPassword"));
+
+        assertEquals(
+             "Invalid email or password",
+             exception.getMessage());
+
+        verify(passwordEncoder)
+             .matches(
+                     "wrongPassword",
+                     user.getPassword());
+
+     // Failed login attempt should be recorded
+        assertEquals(
+             1,
+             user.getFailedLoginAttempts());
+
+        verify(userRepository)
+             .save(user);
+    }
+    
+    @Test
+    void shouldResetFailedLoginAttemptsAfterSuccessfulLogin() {
+
+        User user = new User(
                 "John",
                 "Doe",
                 "john@example.com",
-                "$2a$10$hashedPassword"
-        );
+                "$2a$10$hashedPassword");
+
+        user.setFailedLoginAttempts(3);
 
         when(userRepository.findByEmail("john@example.com"))
                 .thenReturn(Optional.of(user));
 
         when(passwordEncoder.matches(
-                "wrongPassword",
-                user.getPassword()
-        )).thenReturn(false);
+                "password123",
+                user.getPassword())).thenReturn(true);
 
-        IllegalArgumentException exception =
-                assertThrows(
-                        IllegalArgumentException.class,
-                        () -> authenticationService.authenticate(
-                                "john@example.com",
-                                "wrongPassword"
-                        )
-                );
+        when(userRepository.save(user))
+                .thenReturn(user);
+
+        User authenticatedUser = authenticationService.authenticate(
+                "john@example.com",
+                "password123");
 
         assertEquals(
-                "Invalid email or password",
-                exception.getMessage()
-        );
+                0,
+                authenticatedUser.getFailedLoginAttempts());
 
-        verify(passwordEncoder)
-                .matches(
-                        "wrongPassword",
-                        user.getPassword()
-                );
+        assertNotNull(
+                authenticatedUser.getLastLoginAt());
 
-        verify(userRepository, never())
-                .save(any(User.class));
+        verify(userRepository)
+                .save(user);
     }
+
 }
