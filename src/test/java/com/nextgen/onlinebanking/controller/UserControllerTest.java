@@ -1,8 +1,11 @@
 package com.nextgen.onlinebanking.controller;
 
+import com.nextgen.onlinebanking.dto.LoginRequest;
 import com.nextgen.onlinebanking.dto.RegisterRequest;
+import com.nextgen.onlinebanking.exception.InvalidCredentialsException;
 import com.nextgen.onlinebanking.model.User;
 import com.nextgen.onlinebanking.security.SecurityConfig;
+import com.nextgen.onlinebanking.service.AuthenticationService;
 import com.nextgen.onlinebanking.service.UserService;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -32,6 +35,9 @@ class UserControllerTest {
 
     @MockitoBean
     private UserService userService;
+
+    @MockitoBean
+    private AuthenticationService authenticationService;
 
     @Test
     void shouldRegisterUser() throws Exception {
@@ -173,5 +179,107 @@ class UserControllerTest {
                                             .value("Email already registered"));
     }
 
+    @Test
+    void shouldLoginUser() throws Exception {
+
+            LoginRequest request = new LoginRequest(
+                            "john@example.com",
+                            "password123");
+
+            User user = new User(
+                            "John",
+                            "Doe",
+                            "john@example.com",
+                            "$2a$10$hashedPassword");
+
+            user.setId(1L);
+
+            when(authenticationService.authenticate(
+                            "john@example.com",
+                            "password123"))
+                            .thenReturn(user);
+
+            mockMvc.perform(
+                            post("/api/auth/login")
+                                            .with(csrf())
+                                            .contentType(MediaType.APPLICATION_JSON)
+                                            .content(objectMapper.writeValueAsString(request)))
+                            .andExpect(status().isOk())
+                            .andExpect(jsonPath("$.id").value(1))
+                            .andExpect(jsonPath("$.firstName").value("John"))
+                            .andExpect(jsonPath("$.lastName").value("Doe"))
+                            .andExpect(jsonPath("$.email").value("john@example.com"))
+                            .andExpect(jsonPath("$.password").doesNotExist());
+
+            verify(authenticationService)
+                            .authenticate(
+                                            "john@example.com",
+                                            "password123");
+    }
+
+    @Test
+    void shouldRejectLoginWithInvalidEmail() throws Exception {
+
+            LoginRequest request = new LoginRequest(
+                            "invalid-email",
+                            "password123");
+
+            mockMvc.perform(
+                            post("/api/auth/login")
+                                            .with(csrf())
+                                            .contentType(MediaType.APPLICATION_JSON)
+                                            .content(objectMapper.writeValueAsString(request)))
+                            .andExpect(status().isBadRequest());
+
+            verifyNoInteractions(authenticationService);
+    }
+
+    @Test
+    void shouldRejectLoginWithBlankPassword() throws Exception {
+
+            LoginRequest request = new LoginRequest(
+                            "john@example.com",
+                            "");
+
+            mockMvc.perform(
+                            post("/api/auth/login")
+                                            .with(csrf())
+                                            .contentType(MediaType.APPLICATION_JSON)
+                                            .content(objectMapper.writeValueAsString(request)))
+                            .andExpect(status().isBadRequest());
+
+            verifyNoInteractions(authenticationService);
+    }
+
+    @Test
+    void shouldRejectInvalidCredentials() throws Exception {
+
+            LoginRequest request = new LoginRequest(
+                            "john@example.com",
+                            "wrongPassword");
+
+            when(authenticationService.authenticate(
+                            "john@example.com",
+                            "wrongPassword"))
+                            .thenThrow(
+                                            new InvalidCredentialsException(
+                                                            "Invalid email or password"));
+
+            mockMvc.perform(
+                            post("/api/auth/login")
+                                            .with(csrf())
+                                            .contentType(MediaType.APPLICATION_JSON)
+                                            .content(objectMapper.writeValueAsString(request)))
+                            .andExpect(status().isUnauthorized())
+                            .andExpect(jsonPath("$.status").value(401))
+                            .andExpect(jsonPath("$.error").value("UNAUTHORIZED"))
+                            .andExpect(jsonPath("$.message")
+                                            .value("Invalid email or password"));
+
+            verify(authenticationService)
+                            .authenticate(
+                                            "john@example.com",
+                                            "wrongPassword");
+    }
 
 }
