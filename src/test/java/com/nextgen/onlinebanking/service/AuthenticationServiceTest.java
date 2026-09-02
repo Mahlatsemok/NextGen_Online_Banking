@@ -10,6 +10,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import com.nextgen.onlinebanking.exception.InvalidCredentialsException;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -97,9 +98,9 @@ class AuthenticationServiceTest {
         when(userRepository.findByEmail("unknown@example.com"))
                 .thenReturn(Optional.empty());
 
-        IllegalArgumentException exception =
+        InvalidCredentialsException exception =
                 assertThrows(
-                        IllegalArgumentException.class,
+                    InvalidCredentialsException.class,
                         () -> authenticationService.authenticate(
                                 "unknown@example.com",
                                 "password123"

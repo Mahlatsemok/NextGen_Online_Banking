@@ -6,6 +6,8 @@ import com.nextgen.onlinebanking.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import com.nextgen.onlinebanking.exception.InvalidCredentialsException;
+
 import java.time.LocalDateTime;
 
 @Service
@@ -26,7 +28,8 @@ public class AuthenticationService {
 
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() ->
-                        new IllegalArgumentException(
+                        //new IllegalArgumentException(
+                         new InvalidCredentialsException(
                                 "Invalid email or password"));
 
         if (user.getStatus() == UserStatus.LOCKED ||
