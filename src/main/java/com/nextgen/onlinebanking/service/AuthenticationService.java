@@ -1,6 +1,7 @@
 package com.nextgen.onlinebanking.service;
 
 import com.nextgen.onlinebanking.model.User;
+import com.nextgen.onlinebanking.model.UserStatus;
 import com.nextgen.onlinebanking.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -25,9 +26,27 @@ public class AuthenticationService {
 
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() ->
-                        new IllegalArgumentException("Invalid email or password"));
+                        new IllegalArgumentException(
+                                "Invalid email or password"));
 
-        if (!passwordEncoder.matches(password, user.getPassword())) {
+        if (user.getStatus() == UserStatus.LOCKED ||
+                user.getStatus() == UserStatus.SUSPENDED ||
+                user.getStatus() == UserStatus.CLOSED) {
+
+            throw new IllegalArgumentException(
+                    "Account is not available for login");
+        }
+
+        if (!passwordEncoder.matches(
+                password,
+                user.getPassword())) {
+
+            user.setFailedLoginAttempts(
+                    user.getFailedLoginAttempts() + 1
+            );
+
+            userRepository.save(user);
+
             throw new IllegalArgumentException(
                     "Invalid email or password");
         }
