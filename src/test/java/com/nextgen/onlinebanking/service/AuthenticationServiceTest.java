@@ -1,5 +1,6 @@
 package com.nextgen.onlinebanking.service;
 
+import com.nextgen.onlinebanking.model.UserStatus;
 import com.nextgen.onlinebanking.model.User;
 import com.nextgen.onlinebanking.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -12,6 +13,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -189,6 +191,96 @@ class AuthenticationServiceTest {
 
         verify(userRepository)
                 .save(user);
+    }
+
+    @Test
+    void shouldRejectLockedUser() {
+
+        User user = new User(
+                "John",
+                "Doe",
+                "john@example.com",
+                "$2a$10$hashedPassword");
+
+        user.setStatus(UserStatus.LOCKED);
+
+        when(userRepository.findByEmail("john@example.com"))
+                .thenReturn(Optional.of(user));
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> authenticationService.authenticate(
+                        "john@example.com",
+                        "password123"));
+
+        assertEquals(
+                "Account is not available for login",
+                exception.getMessage());
+
+        verifyNoInteractions(passwordEncoder);
+
+        verify(userRepository, never())
+                .save(any(User.class));
+    }
+
+    @Test
+    void shouldRejectSuspendedUser() {
+
+        User user = new User(
+                "John",
+                "Doe",
+                "john@example.com",
+                "$2a$10$hashedPassword");
+
+        user.setStatus(UserStatus.SUSPENDED);
+
+        when(userRepository.findByEmail("john@example.com"))
+                .thenReturn(Optional.of(user));
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> authenticationService.authenticate(
+                        "john@example.com",
+                        "password123"));
+
+        assertEquals(
+                "Account is not available for login",
+                exception.getMessage());
+
+        verifyNoInteractions(passwordEncoder);
+
+        verify(userRepository, never())
+                .save(any(User.class));
+    }
+
+    @Test
+    void shouldRejectClosedUser() {
+
+        User user = new User(
+                "John",
+                "Doe",
+                "john@example.com",
+                "$2a$10$hashedPassword");
+
+        user.setStatus(UserStatus.CLOSED);
+
+        when(userRepository.findByEmail("john@example.com"))
+                .thenReturn(Optional.of(user));
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> authenticationService.authenticate(
+                        "john@example.com",
+                        "password123"));
+
+        assertEquals(
+                "Account is not available for login",
+                exception.getMessage());
+
+        verifyNoInteractions(passwordEncoder);
+
+        verify(userRepository, never())
+                .save(any(User.class));
     }
 
 }
