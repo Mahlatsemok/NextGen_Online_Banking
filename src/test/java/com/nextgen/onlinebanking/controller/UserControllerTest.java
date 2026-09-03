@@ -16,6 +16,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -24,6 +26,9 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+
+import java.util.Collections;
 
 @WebMvcTest(UserController.class)
 @Import(SecurityConfig.class)
@@ -325,4 +330,33 @@ class UserControllerTest {
 
             verifyNoInteractions(jwtService);
     }
+
+    @Test
+    void shouldReturnAuthenticatedUserProfile() throws Exception {
+
+            User user = new User(
+                            "John",
+                            "Doe",
+                            "john@example.com",
+                            "hashedPassword");
+
+            user.setId(1L);
+
+            UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                            user,
+                            null,
+                            Collections.emptyList());
+
+            mockMvc.perform(
+                            get("/api/auth/profile")
+                                            .with(SecurityMockMvcRequestPostProcessors.authentication(
+                                                            authentication)))
+                            .andExpect(status().isOk())
+                            .andExpect(jsonPath("$.id").value(1))
+                            .andExpect(jsonPath("$.firstName").value("John"))
+                            .andExpect(jsonPath("$.lastName").value("Doe"))
+                            .andExpect(jsonPath("$.email").value("john@example.com"))
+                            .andExpect(jsonPath("$.password").doesNotExist());
+    }
+
 }
