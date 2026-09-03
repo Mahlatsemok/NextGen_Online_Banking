@@ -9,6 +9,7 @@ import com.nextgen.onlinebanking.service.AuthenticationService;
 import com.nextgen.onlinebanking.service.UserService;
 import tools.jackson.databind.json.JsonMapper;
 import com.nextgen.onlinebanking.security.JwtService;
+import com.nextgen.onlinebanking.repository.UserRepository;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,6 +43,9 @@ class UserControllerTest {
 
     @MockitoBean
     private JwtService jwtService;
+
+    @MockitoBean
+    private UserRepository userRepository;
 
     @Test
     void shouldRegisterUser() throws Exception {
@@ -321,6 +325,4 @@ class UserControllerTest {
 
             verifyNoInteractions(jwtService);
     }
-
-
 }
