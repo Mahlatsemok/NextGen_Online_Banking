@@ -406,4 +406,24 @@ class UserControllerTest {
             verify(jwtService).isTokenValid(token, "john@example.com");
     }
 
+    @Test
+    void shouldRejectProfileRequestWithInvalidJwt() throws Exception {
+
+            String token = "invalid-jwt-token";
+
+            when(jwtService.extractEmail(token))
+                            .thenThrow(new RuntimeException("Invalid JWT"));
+
+            mockMvc.perform(
+                            get("/api/auth/profile")
+                                            .header(
+                                                            "Authorization",
+                                                            "Bearer " + token))
+                            .andExpect(status().isUnauthorized());
+
+            verify(jwtService).extractEmail(token);
+            verifyNoInteractions(userRepository);
+    }
+
+
 }
