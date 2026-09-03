@@ -367,5 +367,43 @@ class UserControllerTest {
                             .andExpect(status().isUnauthorized());
     }
 
+    @Test
+    void shouldAllowProfileRequestWithValidJwt() throws Exception {
+
+            String token = "valid-jwt-token";
+
+            User user = new User(
+                            "John",
+                            "Doe",
+                            "john@example.com",
+                            "hashedPassword");
+
+            user.setId(1L);
+
+            when(jwtService.extractEmail(token))
+                            .thenReturn("john@example.com");
+
+            when(userRepository.findByEmail("john@example.com"))
+                            .thenReturn(java.util.Optional.of(user));
+
+            when(jwtService.isTokenValid(token, "john@example.com"))
+                            .thenReturn(true);
+
+            mockMvc.perform(
+                            get("/api/auth/profile")
+                                            .header(
+                                                            "Authorization",
+                                                            "Bearer " + token))
+                            .andExpect(status().isOk())
+                            .andExpect(jsonPath("$.id").value(1))
+                            .andExpect(jsonPath("$.firstName").value("John"))
+                            .andExpect(jsonPath("$.lastName").value("Doe"))
+                            .andExpect(jsonPath("$.email").value("john@example.com"))
+                            .andExpect(jsonPath("$.password").doesNotExist());
+
+            verify(jwtService).extractEmail(token);
+            verify(userRepository).findByEmail("john@example.com");
+            verify(jwtService).isTokenValid(token, "john@example.com");
+    }
 
 }
