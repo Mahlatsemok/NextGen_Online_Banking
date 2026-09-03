@@ -35,6 +35,15 @@ public class SecurityConfig {
                                 "/api/auth/login"
                         )
                 )
+                .exceptionHandling(exception -> exception
+                        .authenticationEntryPoint(
+                                (request, response, authException) ->
+                                        response.sendError(
+                                                401,
+                                                "Unauthorized"
+                                        )
+                        )
+                )
                 .addFilterBefore(
                         jwtAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class
