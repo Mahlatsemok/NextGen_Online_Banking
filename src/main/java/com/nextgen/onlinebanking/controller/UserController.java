@@ -2,6 +2,7 @@ package com.nextgen.onlinebanking.controller;
 
 import com.nextgen.onlinebanking.dto.AuthenticationResponse;
 import com.nextgen.onlinebanking.dto.LoginRequest;
+import com.nextgen.onlinebanking.dto.LogoutResponse;
 import com.nextgen.onlinebanking.dto.RegisterRequest;
 import com.nextgen.onlinebanking.dto.UserResponse;
 import com.nextgen.onlinebanking.model.User;
@@ -77,8 +78,14 @@ public class UserController {
         User user = (User) authentication.getPrincipal();
 
         return ResponseEntity.ok(
-            UserResponse.fromUser(user));
+                UserResponse.fromUser(user));
     }
+    
+    @PostMapping("/logout")
+    public ResponseEntity<LogoutResponse> logout() {
 
+        return ResponseEntity.ok(
+                new LogoutResponse("Logout successful"));
+    }
 
 }

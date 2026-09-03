@@ -456,4 +456,31 @@ class UserControllerTest {
             verify(jwtService).isTokenValid(token, "john@example.com");
     }
 
+   @Test
+   void shouldLogoutAuthenticatedUser() throws Exception {
+
+           User user = new User(
+                           "John",
+                           "Doe",
+                           "john@example.com",
+                           "hashedPassword");
+
+           user.setId(1L);
+
+           UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                           user,
+                           null,
+                           Collections.emptyList());
+
+           mockMvc.perform(
+                           post("/api/auth/logout")
+                                           .with(
+                                                           SecurityMockMvcRequestPostProcessors
+                                                                           .authentication(authentication))
+                                           .with(csrf()))
+                           .andExpect(status().isOk())
+                           .andExpect(jsonPath("$.message")
+                                           .value("Logout successful"));
+   }
+
 }
