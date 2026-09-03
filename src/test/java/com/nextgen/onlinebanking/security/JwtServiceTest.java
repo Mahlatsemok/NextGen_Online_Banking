@@ -90,4 +90,27 @@ class JwtServiceTest {
         assertFalse(valid);
     }
 
+    @Test
+    void shouldRejectExpiredToken() {
+
+        JwtService shortLivedJwtService = new JwtService(
+                "NextGenBankingSecretKeyForJwtAuthentication123456789",
+                1);
+
+        String token = shortLivedJwtService.generateToken(
+                "john@example.com");
+
+        try {
+            Thread.sleep(10);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+        }
+
+        boolean valid = shortLivedJwtService.isTokenValid(
+                token,
+                "john@example.com");
+
+        assertFalse(valid);
+    }
+
 }
