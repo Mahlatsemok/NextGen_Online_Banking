@@ -28,6 +28,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import java.util.Optional;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.Collections;
 
@@ -495,5 +498,69 @@ class UserControllerTest {
                            .revokeToken(token);
    }
 
+   @Test
+   void shouldRejectRevokedTokenAfterLogout() throws Exception {
+
+           String token = "valid.jwt.token";
+           String email = "john@example.com";
+
+           User user = new User(
+                           "John",
+                           "Doe",
+                           email,
+                           "$2a$10$hashedPassword");
+
+           user.setId(1L);
+
+           // JWT is initially valid.
+           when(jwtService.extractEmail(token))
+                           .thenReturn(email);
+
+           when(jwtService.isTokenValid(token, email))
+                           .thenReturn(true);
+
+           when(userRepository.findByEmail(email))
+                           .thenReturn(Optional.of(user));
+
+           // Before logout, token is NOT revoked.
+           when(tokenRevocationService.isTokenRevoked(token))
+                           .thenReturn(false);
+
+           // First request: token should authenticate successfully.
+           mockMvc.perform(
+                           get("/api/auth/profile")
+                                           .header(
+                                                           "Authorization",
+                                                           "Bearer " + token))
+                           .andExpect(status().isOk())
+                           .andExpect(jsonPath("$.email")
+                                           .value(email));
+
+           // Logout.
+           mockMvc.perform(
+                           post("/api/auth/logout")
+                                           .header(
+                                                           "Authorization",
+                                                           "Bearer " + token)
+                                           .with(csrf()))
+                           .andExpect(status().isOk())
+                           .andExpect(jsonPath("$.message")
+                                           .value("Logout successful"));
+
+           verify(tokenRevocationService)
+                           .revokeToken(token);
+
+           // After logout, the same token is revoked.
+           when(tokenRevocationService.isTokenRevoked(token))
+                           .thenReturn(true);
+
+           // Try to use the same JWT again.
+           mockMvc.perform(
+                           get("/api/auth/profile")
+                                           .header(
+                                                           "Authorization",
+                                                           "Bearer " + token))
+                           .andExpect(status().isUnauthorized());
+   }
 
 }
