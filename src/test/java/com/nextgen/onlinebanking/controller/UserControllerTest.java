@@ -8,6 +8,7 @@ import com.nextgen.onlinebanking.security.SecurityConfig;
 import com.nextgen.onlinebanking.service.AuthenticationService;
 import com.nextgen.onlinebanking.service.UserService;
 import tools.jackson.databind.json.JsonMapper;
+import com.nextgen.onlinebanking.security.JwtService;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,6 +39,9 @@ class UserControllerTest {
 
     @MockitoBean
     private AuthenticationService authenticationService;
+
+    @MockitoBean
+    private JwtService jwtService;
 
     @Test
     void shouldRegisterUser() throws Exception {
@@ -199,12 +203,16 @@ class UserControllerTest {
                             "password123"))
                             .thenReturn(user);
 
+           when(jwtService.generateToken("john@example.com"))
+                .thenReturn("mock-jwt-token");              
+
             mockMvc.perform(
                             post("/api/auth/login")
                                             .with(csrf())
                                             .contentType(MediaType.APPLICATION_JSON)
                                             .content(objectMapper.writeValueAsString(request)))
                             .andExpect(status().isOk())
+                            .andExpect(jsonPath("$.token").value("mock-jwt-token"))
                             .andExpect(jsonPath("$.id").value(1))
                             .andExpect(jsonPath("$.firstName").value("John"))
                             .andExpect(jsonPath("$.lastName").value("Doe"))
@@ -215,6 +223,9 @@ class UserControllerTest {
                             .authenticate(
                                             "john@example.com",
                                             "password123");
+
+            verify(jwtService)
+                .generateToken("john@example.com");  
     }
 
     @Test
@@ -281,5 +292,35 @@ class UserControllerTest {
                                             "john@example.com",
                                             "wrongPassword");
     }
+
+    @Test
+    void shouldNotGenerateJwtWhenLoginFails() throws Exception {
+
+            LoginRequest request = new LoginRequest(
+                            "john@example.com",
+                            "wrongPassword");
+
+            when(authenticationService.authenticate(
+                            "john@example.com",
+                            "wrongPassword"))
+                            .thenThrow(
+                                            new InvalidCredentialsException(
+                                                            "Invalid email or password"));
+
+            mockMvc.perform(
+                            post("/api/auth/login")
+                                            .with(csrf())
+                                            .contentType(MediaType.APPLICATION_JSON)
+                                            .content(objectMapper.writeValueAsString(request)))
+                            .andExpect(status().isUnauthorized());
+
+            verify(authenticationService)
+                            .authenticate(
+                                            "john@example.com",
+                                            "wrongPassword");
+
+            verifyNoInteractions(jwtService);
+    }
+
 
 }

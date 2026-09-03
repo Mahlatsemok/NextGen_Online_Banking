@@ -11,6 +11,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import com.nextgen.onlinebanking.security.JwtService;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -18,13 +19,16 @@ public class UserController {
 
     private final UserService userService;
     private final AuthenticationService authenticationService;
+    private final JwtService jwtService;
 
     public UserController(
-            UserService userService,
-            AuthenticationService authenticationService) {
+        UserService userService,
+        AuthenticationService authenticationService,
+            JwtService jwtService) {
 
         this.userService = userService;
         this.authenticationService = authenticationService;
+        this.jwtService = jwtService;
     }
 
     @PostMapping("/register")
@@ -50,12 +54,19 @@ public class UserController {
             @Valid @RequestBody LoginRequest request) {
 
         User user = authenticationService.authenticate(
-                request.getEmail(),
-                request.getPassword());
+            request.getEmail(),
+            request.getPassword());
 
-        AuthenticationResponse response =
-                AuthenticationResponse.fromUser(user);
+        String token = jwtService.generateToken(user.getEmail());
+
+        AuthenticationResponse response = new AuthenticationResponse(
+            token,
+            user.getId(),
+            user.getFirstName(),
+            user.getLastName(),
+            user.getEmail());
 
         return ResponseEntity.ok(response);
     }
+
 }
