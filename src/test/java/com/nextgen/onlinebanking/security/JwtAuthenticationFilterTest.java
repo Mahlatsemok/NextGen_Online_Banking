@@ -28,6 +28,9 @@ class JwtAuthenticationFilterTest {
     private UserRepository userRepository;
 
     @Mock
+    private TokenRevocationService tokenRevocationService;
+
+    @Mock
     private FilterChain filterChain;
 
     private JwtAuthenticationFilter filter;
@@ -37,7 +40,8 @@ class JwtAuthenticationFilterTest {
 
         filter = new JwtAuthenticationFilter(
                 jwtService,
-                userRepository
+                userRepository,
+                tokenRevocationService        
         );
 
         SecurityContextHolder.clearContext();
@@ -209,5 +213,40 @@ void shouldNotAuthenticateUnknownUser()
             .doFilter(request, response);
 }
 
+@Test
+void shouldNotAuthenticateRevokedToken() throws Exception {
+
+    String token = "revoked-token";
+
+    MockHttpServletRequest request = new MockHttpServletRequest();
+
+    request.addHeader(
+            "Authorization",
+            "Bearer " + token);
+
+    MockHttpServletResponse response = new MockHttpServletResponse();
+
+    when(tokenRevocationService.isTokenRevoked(token))
+            .thenReturn(true);
+
+    filter.doFilter(
+            request,
+            response,
+            filterChain);
+
+    assertNull(
+            SecurityContextHolder
+                    .getContext()
+                    .getAuthentication());
+
+    verify(tokenRevocationService)
+            .isTokenRevoked(token);
+
+    verifyNoInteractions(jwtService);
+    verifyNoInteractions(userRepository);
+
+    verify(filterChain)
+            .doFilter(request, response);
+}
 
 }

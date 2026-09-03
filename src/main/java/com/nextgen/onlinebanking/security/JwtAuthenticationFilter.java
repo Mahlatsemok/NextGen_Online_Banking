@@ -18,13 +18,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final UserRepository userRepository;
+    private final TokenRevocationService tokenRevocationService;
 
     public JwtAuthenticationFilter(
-            JwtService jwtService,
-            UserRepository userRepository) {
+        JwtService jwtService,
+        UserRepository userRepository,
+            TokenRevocationService tokenRevocationService) {
 
         this.jwtService = jwtService;
         this.userRepository = userRepository;
+        this.tokenRevocationService = tokenRevocationService;
     }
 
     @Override
@@ -46,6 +49,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String token =
                 authorizationHeader.substring(7);
+ 
+        if (tokenRevocationService.isTokenRevoked(token)) {
+            filterChain.doFilter(request, response);
+            return;
+        }
 
         try {
 
