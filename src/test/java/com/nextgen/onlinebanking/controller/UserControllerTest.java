@@ -359,4 +359,13 @@ class UserControllerTest {
                             .andExpect(jsonPath("$.password").doesNotExist());
     }
 
+    @Test
+    void shouldRejectUnauthenticatedProfileRequest() throws Exception {
+
+            mockMvc.perform(
+                            get("/api/auth/profile"))
+                            .andExpect(status().isUnauthorized());
+    }
+
+
 }
