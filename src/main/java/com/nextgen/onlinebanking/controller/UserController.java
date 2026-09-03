@@ -8,6 +8,9 @@ import com.nextgen.onlinebanking.dto.UserResponse;
 import com.nextgen.onlinebanking.model.User;
 import com.nextgen.onlinebanking.service.AuthenticationService;
 import com.nextgen.onlinebanking.service.UserService;
+import com.nextgen.onlinebanking.security.TokenRevocationService;
+
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -22,15 +25,18 @@ public class UserController {
     private final UserService userService;
     private final AuthenticationService authenticationService;
     private final JwtService jwtService;
+    private final TokenRevocationService tokenRevocationService;
 
     public UserController(
         UserService userService,
         AuthenticationService authenticationService,
-            JwtService jwtService) {
+        JwtService jwtService,
+            TokenRevocationService tokenRevocationService) {
 
         this.userService = userService;
         this.authenticationService = authenticationService;
         this.jwtService = jwtService;
+        this.tokenRevocationService = tokenRevocationService;
     }
 
     @PostMapping("/register")
@@ -82,10 +88,21 @@ public class UserController {
     }
     
     @PostMapping("/logout")
-    public ResponseEntity<LogoutResponse> logout() {
+public ResponseEntity<LogoutResponse> logout(
+        HttpServletRequest request) {
 
-        return ResponseEntity.ok(
-                new LogoutResponse("Logout successful"));
+    String authorizationHeader = request.getHeader("Authorization");
+
+    if (authorizationHeader != null &&
+            authorizationHeader.startsWith("Bearer ")) {
+
+        String token = authorizationHeader.substring(7);
+
+        tokenRevocationService.revokeToken(token);
     }
+
+    return ResponseEntity.ok(
+            new LogoutResponse("Logout successful"));
+}
 
 }

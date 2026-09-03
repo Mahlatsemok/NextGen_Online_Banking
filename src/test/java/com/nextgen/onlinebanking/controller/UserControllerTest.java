@@ -10,6 +10,7 @@ import com.nextgen.onlinebanking.service.UserService;
 import tools.jackson.databind.json.JsonMapper;
 import com.nextgen.onlinebanking.security.JwtService;
 import com.nextgen.onlinebanking.repository.UserRepository;
+import com.nextgen.onlinebanking.security.TokenRevocationService;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,6 +52,9 @@ class UserControllerTest {
 
     @MockitoBean
     private UserRepository userRepository;
+
+    @MockitoBean
+    private TokenRevocationService tokenRevocationService;
 
     @Test
     void shouldRegisterUser() throws Exception {
@@ -459,6 +463,8 @@ class UserControllerTest {
    @Test
    void shouldLogoutAuthenticatedUser() throws Exception {
 
+           String token = "valid-jwt-token";
+
            User user = new User(
                            "John",
                            "Doe",
@@ -474,6 +480,9 @@ class UserControllerTest {
 
            mockMvc.perform(
                            post("/api/auth/logout")
+                                           .header(
+                                                           "Authorization",
+                                                           "Bearer " + token)
                                            .with(
                                                            SecurityMockMvcRequestPostProcessors
                                                                            .authentication(authentication))
@@ -481,6 +490,10 @@ class UserControllerTest {
                            .andExpect(status().isOk())
                            .andExpect(jsonPath("$.message")
                                            .value("Logout successful"));
+
+           verify(tokenRevocationService)
+                           .revokeToken(token);
    }
+
 
 }
