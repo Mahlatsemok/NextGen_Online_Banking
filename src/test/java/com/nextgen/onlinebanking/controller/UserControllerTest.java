@@ -425,5 +425,35 @@ class UserControllerTest {
             verifyNoInteractions(userRepository);
     }
 
+    @Test
+    void shouldRejectProfileRequestWithExpiredJwt() throws Exception {
+
+            String token = "expired-jwt-token";
+
+            when(jwtService.extractEmail(token))
+                            .thenReturn("john@example.com");
+
+            when(userRepository.findByEmail("john@example.com"))
+                            .thenReturn(java.util.Optional.of(
+                                            new User(
+                                                            "John",
+                                                            "Doe",
+                                                            "john@example.com",
+                                                            "hashedPassword")));
+
+            when(jwtService.isTokenValid(token, "john@example.com"))
+                            .thenReturn(false);
+
+            mockMvc.perform(
+                            get("/api/auth/profile")
+                                            .header(
+                                                            "Authorization",
+                                                            "Bearer " + token))
+                            .andExpect(status().isUnauthorized());
+
+            verify(jwtService).extractEmail(token);
+            verify(userRepository).findByEmail("john@example.com");
+            verify(jwtService).isTokenValid(token, "john@example.com");
+    }
 
 }
