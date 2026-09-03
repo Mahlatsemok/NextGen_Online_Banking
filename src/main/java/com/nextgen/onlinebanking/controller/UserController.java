@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import com.nextgen.onlinebanking.security.JwtService;
+import org.springframework.security.core.Authentication;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -54,19 +55,30 @@ public class UserController {
             @Valid @RequestBody LoginRequest request) {
 
         User user = authenticationService.authenticate(
-            request.getEmail(),
-            request.getPassword());
+                request.getEmail(),
+                request.getPassword());
 
         String token = jwtService.generateToken(user.getEmail());
 
         AuthenticationResponse response = new AuthenticationResponse(
-            token,
-            user.getId(),
-            user.getFirstName(),
-            user.getLastName(),
-            user.getEmail());
+                token,
+                user.getId(),
+                user.getFirstName(),
+                user.getLastName(),
+                user.getEmail());
 
         return ResponseEntity.ok(response);
     }
+    
+    @GetMapping("/profile")
+    public ResponseEntity<UserResponse> getProfile(
+            Authentication authentication) {
+
+        User user = (User) authentication.getPrincipal();
+
+        return ResponseEntity.ok(
+            UserResponse.fromUser(user));
+    }
+
 
 }
