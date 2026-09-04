@@ -131,11 +131,28 @@ class UserTest {
 
         User user = new User();
 
-        LocalDateTime lastLogin =
-                LocalDateTime.now();
+        LocalDateTime lastLogin = LocalDateTime.now();
 
         user.setLastLoginAt(lastLogin);
 
         assertEquals(lastLogin, user.getLastLoginAt());
     }
+    
+    
+    @Test
+    void shouldAssignUserRoleByDefault() {
+    
+            User user = new User(
+                    "John",
+                    "Doe",
+                    "john@example.com",
+                    "hashedPassword"
+            );
+    
+            assertEquals(
+                    UserRole.USER,
+                    user.getRole()
+            );
+    }
+
 }
