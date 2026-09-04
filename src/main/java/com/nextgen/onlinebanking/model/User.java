@@ -32,6 +32,10 @@ public class User {
     @Column(nullable = false)
     private UserStatus status = UserStatus.ACTIVE;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private UserRole role = UserRole.USER;
+
     @Column(nullable = false)
     private boolean emailVerified = false;
 
@@ -63,6 +67,7 @@ public class User {
         this.lastName = lastName;
         this.email = email;
         this.password = password;
+        this.role = UserRole.USER;
     }
 
 
@@ -106,6 +111,10 @@ public class User {
 
     public UserStatus getStatus() {
         return status;
+    }
+
+    public UserRole getRole() {
+        return role;
     }
 
     public boolean isEmailVerified() {
@@ -167,6 +176,10 @@ public class User {
 
     public void setStatus(UserStatus status) {
         this.status = status;
+    }
+
+    public void setRole(UserRole role) {
+        this.role = role;
     }
 
     public void setEmailVerified(boolean emailVerified) {
