@@ -19,36 +19,32 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(
-            HttpSecurity http) throws Exception {
+                    HttpSecurity http) throws Exception {
 
-        http
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(
-                                "/api/auth/register",
-                                "/api/auth/login"
-                        ).permitAll()
-                        .anyRequest().authenticated()
-                )
-                .csrf(csrf -> csrf
-                        .ignoringRequestMatchers(
-                                "/api/auth/register",
-                                "/api/auth/login"
-                        )
-                )
-                .exceptionHandling(exception -> exception
-                        .authenticationEntryPoint(
-                                (request, response, authException) ->
-                                        response.sendError(
-                                                401,
-                                                "Unauthorized"
-                                        )
-                        )
-                )
-                .addFilterBefore(
-                        jwtAuthenticationFilter,
-                        UsernamePasswordAuthenticationFilter.class
-                );
+            http
+                            .authorizeHttpRequests(auth -> auth
+                                            .requestMatchers(
+                                                            "/api/auth/register",
+                                                            "/api/auth/login")
+                                            .permitAll()
+                                            .requestMatchers("/api/admin/**")
+                                            .hasRole("ADMIN")
+                                            .anyRequest()
+                                            .authenticated())
+                            .csrf(csrf -> csrf
+                                            .ignoringRequestMatchers(
+                                                            "/api/auth/register",
+                                                            "/api/auth/login"))
+                            .exceptionHandling(exception -> exception
+                                            .authenticationEntryPoint(
+                                                            (request, response, authException) -> response.sendError(
+                                                                            401,
+                                                                            "Unauthorized")))
+                            .addFilterBefore(
+                                            jwtAuthenticationFilter,
+                                            UsernamePasswordAuthenticationFilter.class);
 
-        return http.build();
+            return http.build();
     }
+
 }
