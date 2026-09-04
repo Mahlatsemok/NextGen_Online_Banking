@@ -1,6 +1,7 @@
 package com.nextgen.onlinebanking.security;
 
 import com.nextgen.onlinebanking.model.User;
+import com.nextgen.onlinebanking.model.UserRole;
 import com.nextgen.onlinebanking.repository.UserRepository;
 import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.BeforeEach;
@@ -94,6 +95,16 @@ class JwtAuthenticationFilterTest {
                         .getContext()
                         .getAuthentication()
                         .getPrincipal());
+
+        assertTrue(
+        SecurityContextHolder
+                .getContext()
+                .getAuthentication()
+                .getAuthorities()
+                .stream()
+                .anyMatch(authority ->
+                        authority.getAuthority()
+                                .equals("ROLE_USER")));
 
         verify(jwtService)
                 .extractEmail(token);
@@ -244,6 +255,74 @@ void shouldNotAuthenticateRevokedToken() throws Exception {
 
     verifyNoInteractions(jwtService);
     verifyNoInteractions(userRepository);
+
+    verify(filterChain)
+            .doFilter(request, response);
+}
+
+@Test
+void shouldAuthenticateAdminWithAdminRole() throws Exception {
+
+    String token = "admin.jwt.token";
+    String email = "admin@example.com";
+
+    User admin = new User(
+            "Admin",
+            "User",
+            email,
+            "$2a$10$hashedPassword");
+
+    admin.setId(2L);
+    admin.setRole(UserRole.ADMIN);
+
+    MockHttpServletRequest request = new MockHttpServletRequest();
+
+    request.addHeader(
+            "Authorization",
+            "Bearer " + token);
+
+    MockHttpServletResponse response = new MockHttpServletResponse();
+
+    when(tokenRevocationService.isTokenRevoked(token))
+            .thenReturn(false);
+
+    when(jwtService.extractEmail(token))
+            .thenReturn(email);
+
+    when(jwtService.isTokenValid(token, email))
+            .thenReturn(true);
+
+    when(userRepository.findByEmail(email))
+            .thenReturn(Optional.of(admin));
+
+    filter.doFilter(
+            request,
+            response,
+            filterChain);
+
+    assertNotNull(
+            SecurityContextHolder
+                    .getContext()
+                    .getAuthentication());
+
+    assertEquals(
+            admin,
+            SecurityContextHolder
+                    .getContext()
+                    .getAuthentication()
+                    .getPrincipal());
+
+    assertTrue(
+            SecurityContextHolder
+                    .getContext()
+                    .getAuthentication()
+                    .getAuthorities()
+                    .stream()
+                    .anyMatch(authority -> authority.getAuthority()
+                            .equals("ROLE_ADMIN")));
+
+    verify(userRepository)
+            .findByEmail(email);
 
     verify(filterChain)
             .doFilter(request, response);
