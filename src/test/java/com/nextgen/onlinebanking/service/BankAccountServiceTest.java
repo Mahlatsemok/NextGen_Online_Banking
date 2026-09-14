@@ -721,5 +721,116 @@ void shouldRejectClosingNonExistentAccount() {
                         .save(any(BankAccount.class));
 }
 
+@Test
+void shouldReturnAccountWhenUserOwnsAccount() {
+
+        Long userId = 1L;
+        String accountNumber = "1234567890";
+
+        User user = new User();
+        user.setId(userId);
+
+        BankAccount account = new BankAccount();
+        account.setAccountNumber(accountNumber);
+        account.setUser(user);
+
+        when(userRepository.findById(userId))
+                        .thenReturn(Optional.of(user));
+
+        when(bankAccountRepository.findByAccountNumber(accountNumber))
+                        .thenReturn(Optional.of(account));
+
+        BankAccount result = bankAccountService.getAccountForUser(
+                        userId,
+                        accountNumber);
+
+        assertNotNull(result);
+        assertEquals(accountNumber, result.getAccountNumber());
+        assertEquals(userId, result.getUser().getId());
+
+        verify(userRepository)
+                        .findById(userId);
+
+        verify(bankAccountRepository)
+                        .findByAccountNumber(accountNumber);
+}
+
+@Test
+void shouldRejectAccountWhenUserDoesNotOwnAccount() {
+
+        Long requestingUserId = 1L;
+        Long accountOwnerId = 2L;
+
+        String accountNumber = "1234567890";
+
+        User requestingUser = new User();
+        requestingUser.setId(requestingUserId);
+
+        User accountOwner = new User();
+        accountOwner.setId(accountOwnerId);
+
+        BankAccount account = new BankAccount();
+        account.setAccountNumber(accountNumber);
+        account.setUser(accountOwner);
+
+        when(userRepository.findById(requestingUserId))
+                        .thenReturn(Optional.of(requestingUser));
+
+        when(bankAccountRepository.findByAccountNumber(accountNumber))
+                        .thenReturn(Optional.of(account));
+
+        IllegalArgumentException exception = assertThrows(
+                        IllegalArgumentException.class,
+                        () -> bankAccountService.getAccountForUser(
+                                        requestingUserId,
+                                        accountNumber));
+
+        assertEquals(
+                        "Account does not belong to user",
+                        exception.getMessage());
+
+        verify(userRepository)
+                        .findById(requestingUserId);
+
+        verify(bankAccountRepository)
+                        .findByAccountNumber(accountNumber);
+}
+
+@Test
+void shouldRejectWhenAccountDoesNotExistForUser() {
+
+        Long userId = 1L;
+        String accountNumber = "9999999999";
+
+        User user = new User();
+        user.setId(userId);
+
+        when(userRepository.findById(userId))
+                        .thenReturn(Optional.of(user));
+
+        when(bankAccountRepository.findByAccountNumber(accountNumber))
+                        .thenReturn(Optional.empty());
+
+        IllegalArgumentException exception = assertThrows(
+                        IllegalArgumentException.class,
+                        () -> bankAccountService.getAccountForUser(
+                                        userId,
+                                        accountNumber));
+
+        assertEquals(
+                        "Account not found",
+                        exception.getMessage());
+
+        verify(userRepository)
+                        .findById(userId);
+
+        verify(bankAccountRepository)
+                        .findByAccountNumber(accountNumber);
+}
+
+
+
+
+
 
 }
