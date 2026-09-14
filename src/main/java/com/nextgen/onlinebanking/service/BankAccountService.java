@@ -97,6 +97,69 @@ public class BankAccountService {
         return bankAccountRepository.save(account);
     }
 
+    public AccountStatus getAccountStatus(String accountNumber) {
+
+        BankAccount account = bankAccountRepository
+                .findByAccountNumber(accountNumber)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found"));
+
+        return account.getStatus();
+    }
+
+    public BankAccount updateAccountStatus(
+        String accountNumber,
+            AccountStatus status) {
+
+        if (status == null) {
+            throw new IllegalArgumentException("Account status is required");
+        }
+
+        BankAccount account = bankAccountRepository
+                .findByAccountNumber(accountNumber)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found"));
+
+        account.setStatus(status);
+
+        return bankAccountRepository.save(account);
+    }
+
+    public BankAccount freezeAccount(String accountNumber) {
+
+        BankAccount account = bankAccountRepository
+                .findByAccountNumber(accountNumber)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found"));
+
+        if (account.getStatus() == AccountStatus.CLOSED) {
+            throw new IllegalArgumentException(
+                    "Closed account cannot be frozen");
+        }
+
+        account.setStatus(AccountStatus.FROZEN);
+
+        return bankAccountRepository.save(account);
+    }
+
+    public BankAccount closeAccount(String accountNumber) {
+
+        BankAccount account = bankAccountRepository
+                .findByAccountNumber(accountNumber)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found"));
+
+        if (account.getStatus() == AccountStatus.CLOSED) {
+            throw new IllegalArgumentException(
+                    "Account is already closed");
+        }
+
+        if (account.getBalance().compareTo(BigDecimal.ZERO) != 0) {
+            throw new IllegalArgumentException(
+                    "Account balance must be zero before closing");
+        }
+
+        account.setStatus(AccountStatus.CLOSED);
+
+        return bankAccountRepository.save(account);
+    }
+
 
     private String generateUniqueAccountNumber() {
 
