@@ -62,6 +62,40 @@ public class BankAccountService {
                 .orElseThrow(() -> new IllegalArgumentException("Account not found"));
     }
 
+    public BankAccount deposit(String accountNumber, BigDecimal amount) {
+
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Deposit amount must be greater than zero");
+        }
+
+        BankAccount account = bankAccountRepository
+                .findByAccountNumber(accountNumber)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found"));
+
+        account.setBalance(account.getBalance().add(amount));
+
+        return bankAccountRepository.save(account);
+    }
+
+
+    public BankAccount withdraw(String accountNumber, BigDecimal amount) {
+
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Withdrawal amount must be greater than zero");
+        }
+
+        BankAccount account = bankAccountRepository
+                .findByAccountNumber(accountNumber)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found"));
+
+        if (account.getBalance().compareTo(amount) < 0) {
+            throw new IllegalArgumentException("Insufficient funds");
+        }
+
+        account.setBalance(account.getBalance().subtract(amount));
+
+        return bankAccountRepository.save(account);
+    }
 
 
     private String generateUniqueAccountNumber() {
