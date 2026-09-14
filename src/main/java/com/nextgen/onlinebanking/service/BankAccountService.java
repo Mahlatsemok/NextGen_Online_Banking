@@ -179,4 +179,24 @@ public class BankAccountService {
                 .replace("-", "")
                 .substring(0, 10);
     }
+
+    public BankAccount getAccountForUser(
+        Long userId,
+            String accountNumber) {
+
+        userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        BankAccount account = bankAccountRepository
+                .findByAccountNumber(accountNumber)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found"));
+
+        if (!account.getUser().getId().equals(userId)) {
+            throw new IllegalArgumentException(
+                    "Account does not belong to user");
+        }
+
+        return account;
+    }
+
 }
