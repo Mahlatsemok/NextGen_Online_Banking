@@ -56,6 +56,13 @@ public class BankAccountService {
         return bankAccountRepository.findByUserId(userId);
     }
 
+    public BankAccount getAccountByAccountNumber(String accountNumber) {
+
+        return bankAccountRepository.findByAccountNumber(accountNumber)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found"));
+    }
+
+
 
     private String generateUniqueAccountNumber() {
 
