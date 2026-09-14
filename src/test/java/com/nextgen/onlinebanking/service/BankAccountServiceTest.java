@@ -12,6 +12,7 @@ import org.mockito.ArgumentCaptor;
 import java.util.Optional;
 import java.util.Arrays;
 import java.util.List;
+import java.math.BigDecimal;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -182,6 +183,252 @@ void shouldRejectWhenUserDoesNotExist() {
 
         verify(bankAccountRepository, never())
                         .findByUserId(anyLong());
+}
+
+@Test
+void shouldReturnAccountByAccountNumber() {
+
+        String accountNumber = "1234567890";
+
+        BankAccount account = new BankAccount();
+        account.setAccountNumber(accountNumber);
+
+        when(bankAccountRepository.findByAccountNumber(accountNumber))
+                        .thenReturn(Optional.of(account));
+
+        BankAccount result = bankAccountService.getAccountByAccountNumber(accountNumber);
+
+        assertNotNull(result);
+        assertEquals(accountNumber, result.getAccountNumber());
+
+        verify(bankAccountRepository)
+                        .findByAccountNumber(accountNumber);
+}
+
+@Test
+void shouldRejectWhenAccountNumberDoesNotExist() {
+
+        String accountNumber = "9999999999";
+
+        when(bankAccountRepository.findByAccountNumber(accountNumber))
+                        .thenReturn(Optional.empty());
+
+        IllegalArgumentException exception = assertThrows(
+                        IllegalArgumentException.class,
+                        () -> bankAccountService
+                                        .getAccountByAccountNumber(accountNumber));
+
+        assertEquals("Account not found", exception.getMessage());
+
+        verify(bankAccountRepository)
+                        .findByAccountNumber(accountNumber);
+}
+
+@Test
+void shouldDepositMoneyIntoAccount() {
+        String accountNumber = "1234567890";
+
+        BankAccount account = new BankAccount();
+        account.setAccountNumber(accountNumber);
+        account.setBalance(new BigDecimal("100.00"));
+
+        when(bankAccountRepository.findByAccountNumber(accountNumber))
+                        .thenReturn(Optional.of(account));
+
+        when(bankAccountRepository.save(account))
+                        .thenReturn(account);
+
+        BankAccount result = bankAccountService.deposit(
+                        accountNumber,
+                        new BigDecimal("50.00"));
+
+        assertEquals(
+                        new BigDecimal("150.00"),
+                        result.getBalance());
+
+        verify(bankAccountRepository)
+                        .findByAccountNumber(accountNumber);
+
+        verify(bankAccountRepository)
+                        .save(account);
+}
+
+
+@Test
+void shouldRejectNegativeDeposit() {
+
+        IllegalArgumentException exception = assertThrows(
+                        IllegalArgumentException.class,
+                        () -> bankAccountService.deposit(
+                                        "1234567890",
+                                        new BigDecimal("-50.00")));
+
+        assertEquals(
+                        "Deposit amount must be greater than zero",
+                        exception.getMessage());
+
+        verifyNoInteractions(bankAccountRepository);
+}
+
+@Test
+void shouldRejectZeroDeposit() {
+
+        IllegalArgumentException exception = assertThrows(
+                        IllegalArgumentException.class,
+                        () -> bankAccountService.deposit(
+                                        "1234567890",
+                                        BigDecimal.ZERO));
+
+        assertEquals(
+                        "Deposit amount must be greater than zero",
+                        exception.getMessage());
+
+        verifyNoInteractions(bankAccountRepository);
+}
+
+@Test
+void shouldWithdrawMoneyFromAccount() {
+
+        String accountNumber = "1234567890";
+
+        BankAccount account = new BankAccount();
+        account.setAccountNumber(accountNumber);
+        account.setBalance(new BigDecimal("100.00"));
+
+        when(bankAccountRepository.findByAccountNumber(accountNumber))
+                        .thenReturn(Optional.of(account));
+
+        when(bankAccountRepository.save(account))
+                        .thenReturn(account);
+
+        BankAccount result = bankAccountService.withdraw(
+                        accountNumber,
+                        new BigDecimal("40.00"));
+
+        assertEquals(
+                        new BigDecimal("60.00"),
+                        result.getBalance());
+
+        verify(bankAccountRepository)
+                        .findByAccountNumber(accountNumber);
+
+        verify(bankAccountRepository)
+                        .save(account);
+}
+
+@Test
+void shouldRejectWithdrawalWhenInsufficientFunds() {
+
+        String accountNumber = "1234567890";
+
+        BankAccount account = new BankAccount();
+        account.setAccountNumber(accountNumber);
+        account.setBalance(new BigDecimal("50.00"));
+
+        when(bankAccountRepository.findByAccountNumber(accountNumber))
+                        .thenReturn(Optional.of(account));
+
+        IllegalArgumentException exception = assertThrows(
+                        IllegalArgumentException.class,
+                        () -> bankAccountService.withdraw(
+                                        accountNumber,
+                                        new BigDecimal("100.00")));
+
+        assertEquals(
+                        "Insufficient funds",
+                        exception.getMessage());
+
+        assertEquals(
+                        new BigDecimal("50.00"),
+                        account.getBalance());
+
+        verify(bankAccountRepository)
+                        .findByAccountNumber(accountNumber);
+
+        verify(bankAccountRepository, never())
+                        .save(any(BankAccount.class));
+}
+
+@Test
+void shouldRejectNegativeWithdrawal() {
+
+        IllegalArgumentException exception = assertThrows(
+                        IllegalArgumentException.class,
+                        () -> bankAccountService.withdraw(
+                                        "1234567890",
+                                        new BigDecimal("-20.00")));
+
+        assertEquals(
+                        "Withdrawal amount must be greater than zero",
+                        exception.getMessage());
+
+        verifyNoInteractions(bankAccountRepository);
+}
+
+@Test
+void shouldRejectZeroWithdrawal() {
+
+        IllegalArgumentException exception = assertThrows(
+                        IllegalArgumentException.class,
+                        () -> bankAccountService.withdraw(
+                                        "1234567890",
+                                        BigDecimal.ZERO));
+
+        assertEquals(
+                        "Withdrawal amount must be greater than zero",
+                        exception.getMessage());
+
+        verifyNoInteractions(bankAccountRepository);
+}
+
+@Test
+void shouldRejectDepositWhenAccountDoesNotExist() {
+
+        String accountNumber = "9999999999";
+
+        when(bankAccountRepository.findByAccountNumber(accountNumber))
+                        .thenReturn(Optional.empty());
+
+        IllegalArgumentException exception = assertThrows(
+                        IllegalArgumentException.class,
+                        () -> bankAccountService.deposit(
+                                        accountNumber,
+                                        new BigDecimal("50.00")));
+
+        assertEquals(
+                        "Account not found",
+                        exception.getMessage());
+
+        verify(bankAccountRepository)
+                        .findByAccountNumber(accountNumber);
+
+        verify(bankAccountRepository, never())
+                        .save(any(BankAccount.class));
+}
+
+@Test
+void shouldRejectWithdrawalWhenAccountDoesNotExist() {
+
+        String accountNumber = "9999999999";
+
+        when(bankAccountRepository.findByAccountNumber(accountNumber))
+                        .thenReturn(Optional.empty());
+
+        IllegalArgumentException exception = assertThrows(
+                        IllegalArgumentException.class,
+                        () -> bankAccountService.withdraw(
+                                        accountNumber,
+                                        new BigDecimal("50.00")));
+
+        assertEquals(
+                        "Account not found",
+                        exception.getMessage());
+
+        verify(bankAccountRepository)
+                        .findByAccountNumber(accountNumber);
+
+        verify(bankAccountRepository, never())
+                        .save(any(BankAccount.class));
 }
 
 }
