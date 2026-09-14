@@ -431,4 +431,295 @@ void shouldRejectWithdrawalWhenAccountDoesNotExist() {
                         .save(any(BankAccount.class));
 }
 
+@Test
+void shouldReturnAccountStatus() {
+
+        String accountNumber = "1234567890";
+
+        BankAccount account = new BankAccount();
+        account.setAccountNumber(accountNumber);
+        account.setStatus(AccountStatus.ACTIVE);
+
+        when(bankAccountRepository.findByAccountNumber(accountNumber))
+                        .thenReturn(Optional.of(account));
+
+        AccountStatus result = bankAccountService.getAccountStatus(accountNumber);
+
+        assertEquals(AccountStatus.ACTIVE, result);
+
+        verify(bankAccountRepository)
+                        .findByAccountNumber(accountNumber);
+}
+
+@Test
+void shouldRejectStatusRequestWhenAccountDoesNotExist() {
+
+        String accountNumber = "9999999999";
+
+        when(bankAccountRepository.findByAccountNumber(accountNumber))
+                        .thenReturn(Optional.empty());
+
+        IllegalArgumentException exception = assertThrows(
+                        IllegalArgumentException.class,
+                        () -> bankAccountService
+                                        .getAccountStatus(accountNumber));
+
+        assertEquals(
+                        "Account not found",
+                        exception.getMessage());
+
+        verify(bankAccountRepository)
+                        .findByAccountNumber(accountNumber);
+}
+
+@Test
+void shouldUpdateAccountStatus() {
+
+        String accountNumber = "1234567890";
+
+        BankAccount account = new BankAccount();
+        account.setAccountNumber(accountNumber);
+        account.setStatus(AccountStatus.ACTIVE);
+
+        when(bankAccountRepository.findByAccountNumber(accountNumber))
+                        .thenReturn(Optional.of(account));
+
+        when(bankAccountRepository.save(account))
+                        .thenReturn(account);
+
+        BankAccount result = bankAccountService.updateAccountStatus(
+                        accountNumber,
+                        AccountStatus.FROZEN);
+
+        assertEquals(AccountStatus.FROZEN, result.getStatus());
+
+        verify(bankAccountRepository)
+                        .findByAccountNumber(accountNumber);
+
+        verify(bankAccountRepository)
+                        .save(account);
+}
+
+@Test
+void shouldRejectNullAccountStatus() {
+
+        IllegalArgumentException exception = assertThrows(
+                        IllegalArgumentException.class,
+                        () -> bankAccountService.updateAccountStatus(
+                                        "1234567890",
+                                        null));
+
+        assertEquals(
+                        "Account status is required",
+                        exception.getMessage());
+
+        verifyNoInteractions(bankAccountRepository);
+}
+
+@Test
+void shouldRejectStatusUpdateWhenAccountDoesNotExist() {
+
+        String accountNumber = "9999999999";
+
+        when(bankAccountRepository.findByAccountNumber(accountNumber))
+                        .thenReturn(Optional.empty());
+
+        IllegalArgumentException exception = assertThrows(
+                        IllegalArgumentException.class,
+                        () -> bankAccountService.updateAccountStatus(
+                                        accountNumber,
+                                        AccountStatus.FROZEN));
+
+        assertEquals(
+                        "Account not found",
+                        exception.getMessage());
+
+        verify(bankAccountRepository)
+                        .findByAccountNumber(accountNumber);
+
+        verify(bankAccountRepository, never())
+                        .save(any(BankAccount.class));
+}
+
+@Test
+void shouldFreezeActiveAccount() {
+
+        String accountNumber = "1234567890";
+
+        BankAccount account = new BankAccount();
+        account.setAccountNumber(accountNumber);
+        account.setStatus(AccountStatus.ACTIVE);
+
+        when(bankAccountRepository.findByAccountNumber(accountNumber))
+                        .thenReturn(Optional.of(account));
+
+        when(bankAccountRepository.save(account))
+                        .thenReturn(account);
+
+        BankAccount result = bankAccountService.freezeAccount(accountNumber);
+
+        assertEquals(AccountStatus.FROZEN, result.getStatus());
+
+        verify(bankAccountRepository)
+                        .findByAccountNumber(accountNumber);
+
+        verify(bankAccountRepository)
+                        .save(account);
+}
+
+@Test
+void shouldRejectFreezingClosedAccount() {
+
+        String accountNumber = "1234567890";
+
+        BankAccount account = new BankAccount();
+        account.setAccountNumber(accountNumber);
+        account.setStatus(AccountStatus.CLOSED);
+
+        when(bankAccountRepository.findByAccountNumber(accountNumber))
+                        .thenReturn(Optional.of(account));
+
+        IllegalArgumentException exception = assertThrows(
+                        IllegalArgumentException.class,
+                        () -> bankAccountService.freezeAccount(accountNumber));
+
+        assertEquals(
+                        "Closed account cannot be frozen",
+                        exception.getMessage());
+
+        verify(bankAccountRepository)
+                        .findByAccountNumber(accountNumber);
+
+        verify(bankAccountRepository, never())
+                        .save(any(BankAccount.class));
+}
+
+@Test
+void shouldRejectFreezingNonExistentAccount() {
+
+        String accountNumber = "9999999999";
+
+        when(bankAccountRepository.findByAccountNumber(accountNumber))
+                        .thenReturn(Optional.empty());
+
+        IllegalArgumentException exception = assertThrows(
+                        IllegalArgumentException.class,
+                        () -> bankAccountService.freezeAccount(accountNumber));
+
+        assertEquals(
+                        "Account not found",
+                        exception.getMessage());
+
+        verify(bankAccountRepository)
+                        .findByAccountNumber(accountNumber);
+
+        verify(bankAccountRepository, never())
+                        .save(any(BankAccount.class));
+}
+
+@Test
+void shouldCloseAccountWithZeroBalance() {
+
+        String accountNumber = "1234567890";
+
+        BankAccount account = new BankAccount();
+        account.setAccountNumber(accountNumber);
+        account.setBalance(BigDecimal.ZERO);
+        account.setStatus(AccountStatus.ACTIVE);
+
+        when(bankAccountRepository.findByAccountNumber(accountNumber))
+                        .thenReturn(Optional.of(account));
+
+        when(bankAccountRepository.save(account))
+                        .thenReturn(account);
+
+        BankAccount result = bankAccountService.closeAccount(accountNumber);
+
+        assertEquals(AccountStatus.CLOSED, result.getStatus());
+
+        verify(bankAccountRepository)
+                        .findByAccountNumber(accountNumber);
+
+        verify(bankAccountRepository)
+                        .save(account);
+}
+
+@Test
+void shouldRejectClosingAccountWithNonZeroBalance() {
+
+        String accountNumber = "1234567890";
+
+        BankAccount account = new BankAccount();
+        account.setAccountNumber(accountNumber);
+        account.setBalance(new BigDecimal("100.00"));
+        account.setStatus(AccountStatus.ACTIVE);
+
+        when(bankAccountRepository.findByAccountNumber(accountNumber))
+                        .thenReturn(Optional.of(account));
+
+        IllegalArgumentException exception = assertThrows(
+                        IllegalArgumentException.class,
+                        () -> bankAccountService.closeAccount(accountNumber));
+
+        assertEquals(
+                        "Account balance must be zero before closing",
+                        exception.getMessage());
+
+        assertEquals(
+                        AccountStatus.ACTIVE,
+                        account.getStatus());
+
+        verify(bankAccountRepository, never())
+                        .save(any(BankAccount.class));
+}
+
+@Test
+void shouldRejectClosingAlreadyClosedAccount() {
+
+        String accountNumber = "1234567890";
+
+        BankAccount account = new BankAccount();
+        account.setAccountNumber(accountNumber);
+        account.setBalance(BigDecimal.ZERO);
+        account.setStatus(AccountStatus.CLOSED);
+
+        when(bankAccountRepository.findByAccountNumber(accountNumber))
+                        .thenReturn(Optional.of(account));
+
+        IllegalArgumentException exception = assertThrows(
+                        IllegalArgumentException.class,
+                        () -> bankAccountService.closeAccount(accountNumber));
+
+        assertEquals(
+                        "Account is already closed",
+                        exception.getMessage());
+
+        verify(bankAccountRepository, never())
+                        .save(any(BankAccount.class));
+}
+
+@Test
+void shouldRejectClosingNonExistentAccount() {
+
+        String accountNumber = "9999999999";
+
+        when(bankAccountRepository.findByAccountNumber(accountNumber))
+                        .thenReturn(Optional.empty());
+
+        IllegalArgumentException exception = assertThrows(
+                        IllegalArgumentException.class,
+                        () -> bankAccountService.closeAccount(accountNumber));
+
+        assertEquals(
+                        "Account not found",
+                        exception.getMessage());
+
+        verify(bankAccountRepository)
+                        .findByAccountNumber(accountNumber);
+
+        verify(bankAccountRepository, never())
+                        .save(any(BankAccount.class));
+}
+
+
 }
