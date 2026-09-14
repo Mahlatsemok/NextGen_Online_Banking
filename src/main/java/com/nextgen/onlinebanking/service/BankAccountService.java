@@ -1,0 +1,78 @@
+package com.nextgen.onlinebanking.service;
+
+import com.nextgen.onlinebanking.model.AccountStatus;
+import com.nextgen.onlinebanking.model.AccountType;
+import com.nextgen.onlinebanking.model.BankAccount;
+import com.nextgen.onlinebanking.model.User;
+import com.nextgen.onlinebanking.repository.BankAccountRepository;
+import com.nextgen.onlinebanking.repository.UserRepository;
+import org.springframework.stereotype.Service;
+
+import java.math.BigDecimal;
+import java.util.UUID;
+import java.util.List;
+
+@Service
+public class BankAccountService {
+
+    private final BankAccountRepository bankAccountRepository;
+    private final UserRepository userRepository;
+
+    public BankAccountService(
+            BankAccountRepository bankAccountRepository,
+            UserRepository userRepository) {
+
+        this.bankAccountRepository = bankAccountRepository;
+        this.userRepository = userRepository;
+    }
+
+    public BankAccount createAccount(Long userId, AccountType accountType) {
+
+        if (accountType == null) {
+            throw new IllegalArgumentException("Account type is required");
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        String accountNumber = generateUniqueAccountNumber();
+
+        BankAccount account = new BankAccount();
+
+        account.setAccountNumber(accountNumber);
+        account.setUser(user);
+        account.setAccountType(accountType);
+        account.setBalance(BigDecimal.ZERO);
+        account.setStatus(AccountStatus.ACTIVE);
+
+        return bankAccountRepository.save(account);
+    }
+    
+    public List<BankAccount> getAccountsForUser(Long userId) {
+
+        userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        return bankAccountRepository.findByUserId(userId);
+    }
+
+
+    private String generateUniqueAccountNumber() {
+
+        String accountNumber;
+
+        do {
+            accountNumber = generateAccountNumber();
+        } while (bankAccountRepository.existsByAccountNumber(accountNumber));
+
+        return accountNumber;
+    }
+
+    private String generateAccountNumber() {
+
+        return UUID.randomUUID()
+                .toString()
+                .replace("-", "")
+                .substring(0, 10);
+    }
+}
