@@ -828,9 +828,336 @@ void shouldRejectWhenAccountDoesNotExistForUser() {
                         .findByAccountNumber(accountNumber);
 }
 
+@Test
+void shouldDepositMoneyWhenUserOwnsAccount() {
 
+        Long userId = 1L;
+        String accountNumber = "1234567890";
 
+        User user = new User();
+        user.setId(userId);
 
+        BankAccount account = new BankAccount();
+        account.setAccountNumber(accountNumber);
+        account.setUser(user);
+        account.setBalance(new BigDecimal("100.00"));
 
+        when(userRepository.findById(userId))
+                        .thenReturn(Optional.of(user));
+
+        when(bankAccountRepository.findByAccountNumber(accountNumber))
+                        .thenReturn(Optional.of(account));
+
+        when(bankAccountRepository.save(account))
+                        .thenReturn(account);
+
+        BankAccount result = bankAccountService.deposit(
+                        userId,
+                        accountNumber,
+                        new BigDecimal("50.00"));
+
+        assertEquals(
+                        new BigDecimal("150.00"),
+                        result.getBalance());
+
+        verify(userRepository).findById(userId);
+        verify(bankAccountRepository)
+                        .findByAccountNumber(accountNumber);
+        verify(bankAccountRepository)
+                        .save(account);
+}
+
+@Test
+void shouldRejectDepositWhenUserDoesNotOwnAccount() {
+
+        Long requestingUserId = 1L;
+        Long ownerId = 2L;
+        String accountNumber = "1234567890";
+
+        User requestingUser = new User();
+        requestingUser.setId(requestingUserId);
+
+        User owner = new User();
+        owner.setId(ownerId);
+
+        BankAccount account = new BankAccount();
+        account.setAccountNumber(accountNumber);
+        account.setUser(owner);
+        account.setBalance(new BigDecimal("100.00"));
+
+        when(userRepository.findById(requestingUserId))
+                        .thenReturn(Optional.of(requestingUser));
+
+        when(bankAccountRepository.findByAccountNumber(accountNumber))
+                        .thenReturn(Optional.of(account));
+
+        IllegalArgumentException exception = assertThrows(
+                        IllegalArgumentException.class,
+                        () -> bankAccountService.deposit(
+                                        requestingUserId,
+                                        accountNumber,
+                                        new BigDecimal("50.00")));
+
+        assertEquals(
+                        "Account does not belong to user",
+                        exception.getMessage());
+
+        assertEquals(
+                        new BigDecimal("100.00"),
+                        account.getBalance());
+
+        verify(bankAccountRepository, never())
+                        .save(any(BankAccount.class));
+}
+
+@Test
+void shouldWithdrawMoneyWhenUserOwnsAccount() {
+
+        Long userId = 1L;
+        String accountNumber = "1234567890";
+
+        User user = new User();
+        user.setId(userId);
+
+        BankAccount account = new BankAccount();
+        account.setAccountNumber(accountNumber);
+        account.setUser(user);
+        account.setBalance(new BigDecimal("200.00"));
+
+        when(userRepository.findById(userId))
+                        .thenReturn(Optional.of(user));
+
+        when(bankAccountRepository.findByAccountNumber(accountNumber))
+                        .thenReturn(Optional.of(account));
+
+        when(bankAccountRepository.save(account))
+                        .thenReturn(account);
+
+        BankAccount result = bankAccountService.withdraw(
+                        userId,
+                        accountNumber,
+                        new BigDecimal("50.00"));
+
+        assertEquals(
+                        new BigDecimal("150.00"),
+                        result.getBalance());
+
+        verify(userRepository).findById(userId);
+
+        verify(bankAccountRepository)
+                        .findByAccountNumber(accountNumber);
+
+        verify(bankAccountRepository)
+                        .save(account);
+}
+
+@Test
+void shouldRejectWithdrawalWhenUserDoesNotOwnAccount() {
+
+        Long requestingUserId = 1L;
+        Long ownerId = 2L;
+        String accountNumber = "1234567890";
+
+        User requestingUser = new User();
+        requestingUser.setId(requestingUserId);
+
+        User owner = new User();
+        owner.setId(ownerId);
+
+        BankAccount account = new BankAccount();
+        account.setAccountNumber(accountNumber);
+        account.setUser(owner);
+        account.setBalance(new BigDecimal("200.00"));
+
+        when(userRepository.findById(requestingUserId))
+                        .thenReturn(Optional.of(requestingUser));
+
+        when(bankAccountRepository.findByAccountNumber(accountNumber))
+                        .thenReturn(Optional.of(account));
+
+        IllegalArgumentException exception = assertThrows(
+                        IllegalArgumentException.class,
+                        () -> bankAccountService.withdraw(
+                                        requestingUserId,
+                                        accountNumber,
+                                        new BigDecimal("50.00")));
+
+        assertEquals(
+                        "Account does not belong to user",
+                        exception.getMessage());
+
+        // Balance must remain unchanged
+        assertEquals(
+                        new BigDecimal("200.00"),
+                        account.getBalance());
+
+        // Database must not be updated
+        verify(bankAccountRepository, never())
+                        .save(any(BankAccount.class));
+}
+
+@Test
+void shouldFreezeAccountWhenUserOwnsAccount() {
+
+        Long userId = 1L;
+        String accountNumber = "1234567890";
+
+        User user = new User();
+        user.setId(userId);
+
+        BankAccount account = new BankAccount();
+        account.setAccountNumber(accountNumber);
+        account.setUser(user);
+        account.setStatus(AccountStatus.ACTIVE);
+        account.setBalance(BigDecimal.ZERO);
+
+        when(userRepository.findById(userId))
+                        .thenReturn(Optional.of(user));
+
+        when(bankAccountRepository.findByAccountNumber(accountNumber))
+                        .thenReturn(Optional.of(account));
+
+        when(bankAccountRepository.save(account))
+                        .thenReturn(account);
+
+        BankAccount result = bankAccountService.freezeAccount(
+                        userId,
+                        accountNumber);
+
+        assertEquals(
+                        AccountStatus.FROZEN,
+                        result.getStatus());
+
+        verify(userRepository).findById(userId);
+
+        verify(bankAccountRepository)
+                        .findByAccountNumber(accountNumber);
+
+        verify(bankAccountRepository)
+                        .save(account);
+}
+
+@Test
+void shouldRejectFreezingAccountWhenUserDoesNotOwnAccount() {
+
+        Long requestingUserId = 1L;
+        Long ownerId = 2L;
+        String accountNumber = "1234567890";
+
+        User requestingUser = new User();
+        requestingUser.setId(requestingUserId);
+
+        User owner = new User();
+        owner.setId(ownerId);
+
+        BankAccount account = new BankAccount();
+        account.setAccountNumber(accountNumber);
+        account.setUser(owner);
+        account.setStatus(AccountStatus.ACTIVE);
+        account.setBalance(BigDecimal.ZERO);
+
+        when(userRepository.findById(requestingUserId))
+                        .thenReturn(Optional.of(requestingUser));
+
+        when(bankAccountRepository.findByAccountNumber(accountNumber))
+                        .thenReturn(Optional.of(account));
+
+        IllegalArgumentException exception = assertThrows(
+                        IllegalArgumentException.class,
+                        () -> bankAccountService.freezeAccount(
+                                        requestingUserId,
+                                        accountNumber));
+
+        assertEquals(
+                        "Account does not belong to user",
+                        exception.getMessage());
+
+        // Account must remain unchanged
+        assertEquals(
+                        AccountStatus.ACTIVE,
+                        account.getStatus());
+
+        // No database update
+        verify(bankAccountRepository, never())
+                        .save(any(BankAccount.class));
+}
+
+@Test
+void shouldCloseAccountWhenUserOwnsAccount() {
+
+        Long userId = 1L;
+        String accountNumber = "1234567890";
+
+        User user = new User();
+        user.setId(userId);
+
+        BankAccount account = new BankAccount();
+        account.setAccountNumber(accountNumber);
+        account.setUser(user);
+        account.setBalance(BigDecimal.ZERO);
+        account.setStatus(AccountStatus.ACTIVE);
+
+        when(userRepository.findById(userId))
+                        .thenReturn(Optional.of(user));
+
+        when(bankAccountRepository.findByAccountNumber(accountNumber))
+                        .thenReturn(Optional.of(account));
+
+        when(bankAccountRepository.save(account))
+                        .thenReturn(account);
+
+        BankAccount result = bankAccountService.closeAccount(
+                        userId,
+                        accountNumber);
+
+        assertEquals(
+                        AccountStatus.CLOSED,
+                        result.getStatus());
+
+        verify(bankAccountRepository).save(account);
+}
+
+@Test
+void shouldRejectClosingAccountWhenUserDoesNotOwnAccount() {
+
+        Long requestingUserId = 1L;
+        Long ownerId = 2L;
+        String accountNumber = "1234567890";
+
+        User requestingUser = new User();
+        requestingUser.setId(requestingUserId);
+
+        User owner = new User();
+        owner.setId(ownerId);
+
+        BankAccount account = new BankAccount();
+        account.setAccountNumber(accountNumber);
+        account.setUser(owner);
+        account.setBalance(BigDecimal.ZERO);
+        account.setStatus(AccountStatus.ACTIVE);
+
+        when(userRepository.findById(requestingUserId))
+                        .thenReturn(Optional.of(requestingUser));
+
+        when(bankAccountRepository.findByAccountNumber(accountNumber))
+                        .thenReturn(Optional.of(account));
+
+        IllegalArgumentException exception = assertThrows(
+                        IllegalArgumentException.class,
+                        () -> bankAccountService.closeAccount(
+                                        requestingUserId,
+                                        accountNumber));
+
+        assertEquals(
+                        "Account does not belong to user",
+                        exception.getMessage());
+
+        assertEquals(
+                        AccountStatus.ACTIVE,
+                        account.getStatus());
+
+        verify(bankAccountRepository, never())
+                        .save(any(BankAccount.class));
+}
 
 }
