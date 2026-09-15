@@ -77,6 +77,22 @@ public class BankAccountService {
         return bankAccountRepository.save(account);
     }
 
+    public BankAccount deposit(
+        Long userId,
+        String accountNumber,
+            BigDecimal amount) {
+
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException(
+                    "Deposit amount must be greater than zero");
+        }
+
+        BankAccount account = getAccountForUser(userId, accountNumber);
+
+        account.setBalance(account.getBalance().add(amount));
+
+        return bankAccountRepository.save(account);
+    }
 
     public BankAccount withdraw(String accountNumber, BigDecimal amount) {
 
@@ -96,6 +112,28 @@ public class BankAccountService {
 
         return bankAccountRepository.save(account);
     }
+
+    public BankAccount withdraw(
+        Long userId,
+        String accountNumber,
+            BigDecimal amount) {
+
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException(
+                    "Withdrawal amount must be greater than zero");
+        }
+
+        BankAccount account = getAccountForUser(userId, accountNumber);
+
+        if (account.getBalance().compareTo(amount) < 0) {
+            throw new IllegalArgumentException("Insufficient funds");
+        }
+
+        account.setBalance(account.getBalance().subtract(amount));
+
+        return bankAccountRepository.save(account);
+    }
+
 
     public AccountStatus getAccountStatus(String accountNumber) {
 
@@ -139,6 +177,23 @@ public class BankAccountService {
         return bankAccountRepository.save(account);
     }
 
+    public BankAccount freezeAccount(
+        Long userId,
+            String accountNumber) {
+
+        BankAccount account = getAccountForUser(userId, accountNumber);
+
+        if (account.getStatus() == AccountStatus.CLOSED) {
+            throw new IllegalArgumentException(
+                    "Closed account cannot be frozen");
+        }
+
+        account.setStatus(AccountStatus.FROZEN);
+
+        return bankAccountRepository.save(account);
+    }
+
+
     public BankAccount closeAccount(String accountNumber) {
 
         BankAccount account = bankAccountRepository
@@ -160,6 +215,26 @@ public class BankAccountService {
         return bankAccountRepository.save(account);
     }
 
+    public BankAccount closeAccount(
+        Long userId,
+            String accountNumber) {
+
+        BankAccount account = getAccountForUser(userId, accountNumber);
+
+        if (account.getStatus() == AccountStatus.CLOSED) {
+            throw new IllegalArgumentException(
+                    "Account is already closed");
+        }
+
+        if (account.getBalance().compareTo(BigDecimal.ZERO) != 0) {
+            throw new IllegalArgumentException(
+                    "Account balance must be zero before closing");
+        }
+
+        account.setStatus(AccountStatus.CLOSED);
+
+        return bankAccountRepository.save(account);
+    }
 
     private String generateUniqueAccountNumber() {
 
