@@ -31,10 +31,7 @@ public class SecurityConfig {
                                             .hasRole("ADMIN")
                                             .anyRequest()
                                             .authenticated())
-                            .csrf(csrf -> csrf
-                                            .ignoringRequestMatchers(
-                                                            "/api/auth/register",
-                                                            "/api/auth/login"))
+                            .csrf(csrf -> csrf.disable())
                             .exceptionHandling(exception -> exception
                                             .authenticationEntryPoint(
                                                             (request, response, authException) -> response.sendError(
