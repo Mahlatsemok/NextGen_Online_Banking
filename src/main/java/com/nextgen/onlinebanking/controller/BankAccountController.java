@@ -6,6 +6,9 @@ import com.nextgen.onlinebanking.service.BankAccountService;
 import com.nextgen.onlinebanking.dto.CreateAccountRequest;
 import com.nextgen.onlinebanking.dto.DepositRequest;
 import com.nextgen.onlinebanking.dto.WithdrawRequest;
+import com.nextgen.onlinebanking.dto.TransferRequest;
+import com.nextgen.onlinebanking.model.Transaction;
+import com.nextgen.onlinebanking.service.TransactionService;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,12 +23,16 @@ import jakarta.validation.Valid;
 public class BankAccountController {
 
     private final BankAccountService bankAccountService;
+    private final TransactionService transactionService;
 
     public BankAccountController(
-            BankAccountService bankAccountService) {
+        BankAccountService bankAccountService,
+            TransactionService transactionService) {
 
         this.bankAccountService = bankAccountService;
+        this.transactionService = transactionService;
     }
+
 
     @GetMapping
     public ResponseEntity<List<BankAccount>> getMyAccounts(
@@ -128,7 +135,40 @@ public ResponseEntity<BankAccount> closeAccount(
     return ResponseEntity.ok(account);
 }
 
+@PostMapping("/{accountNumber}/transfer")
+public ResponseEntity<Void> transfer(
+        @PathVariable String accountNumber,
+        @Valid @RequestBody TransferRequest request,
+        Authentication authentication) {
 
+    User user = (User) authentication.getPrincipal();
+
+    bankAccountService.transfer(
+            user.getId(),
+            accountNumber,
+            request.getDestinationAccountNumber(),
+            request.getAmount(),
+            request.getIdempotencyKey());
+
+    return ResponseEntity.ok().build();
+}
+
+
+@GetMapping("/{accountNumber}/transactions")
+public ResponseEntity<List<Transaction>> getTransactions(
+        @PathVariable String accountNumber,
+        Authentication authentication) {
+
+    User user = (User) authentication.getPrincipal();
+
+    BankAccount account = bankAccountService.getAccountForUser(
+            user.getId(),
+            accountNumber);
+
+    List<Transaction> transactions = transactionService.getTransactionsForAccount(account);
+
+    return ResponseEntity.ok(transactions);
+}
 
 
 }

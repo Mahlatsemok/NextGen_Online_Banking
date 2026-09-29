@@ -8,6 +8,9 @@ import com.nextgen.onlinebanking.model.AccountType;
 import com.nextgen.onlinebanking.dto.DepositRequest;
 import com.nextgen.onlinebanking.dto.WithdrawRequest;
 import com.nextgen.onlinebanking.model.AccountStatus;
+import com.nextgen.onlinebanking.service.TransactionService;
+import com.nextgen.onlinebanking.model.Transaction;
+import com.nextgen.onlinebanking.model.TransactionType;
 
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -27,14 +30,20 @@ import static org.mockito.Mockito.*;
 
 class BankAccountControllerTest {
 
-    private final BankAccountService bankAccountService =
-            mock(BankAccountService.class);
+   private final BankAccountService bankAccountService =
+        mock(BankAccountService.class);
+
+    private final TransactionService transactionService =
+        mock(TransactionService.class);
 
     private final Authentication authentication =
-            mock(Authentication.class);
+        mock(Authentication.class);
 
     private final BankAccountController bankAccountController =
-            new BankAccountController(bankAccountService);
+        new BankAccountController(
+                bankAccountService,
+                transactionService);
+
 
     @Test
     void shouldReturnAccountsForAuthenticatedUser() {
@@ -326,8 +335,74 @@ class BankAccountControllerTest {
                .closeAccount(userId, accountNumber);
    }
 
+   @Test
+   void shouldReturnTransactionHistoryForAuthenticatedUser() {
 
+       Long userId = 1L;
+       String accountNumber = "1234567890";
 
+       User user = new User();
+       user.setId(userId);
 
+       BankAccount account = new BankAccount();
+       account.setAccountNumber(accountNumber);
+       account.setUser(user);
+
+       Transaction deposit = new Transaction();
+       deposit.setType(TransactionType.DEPOSIT);
+       deposit.setAmount(new BigDecimal("500.00"));
+       deposit.setDestinationAccount(account);
+
+       Transaction withdrawal = new Transaction();
+       withdrawal.setType(TransactionType.WITHDRAWAL);
+       withdrawal.setAmount(new BigDecimal("100.00"));
+       withdrawal.setSourceAccount(account);
+
+       List<Transaction> transactions = Arrays.asList(deposit, withdrawal);
+
+       when(authentication.getPrincipal())
+               .thenReturn(user);
+
+       when(bankAccountService.getAccountForUser(
+               userId,
+               accountNumber))
+               .thenReturn(account);
+
+       when(transactionService.getTransactionsForAccount(account))
+               .thenReturn(transactions);
+
+       ResponseEntity<List<Transaction>> response = bankAccountController.getTransactions(
+               accountNumber,
+               authentication);
+
+       assertEquals(200, response.getStatusCode().value());
+       assertNotNull(response.getBody());
+
+       assertEquals(2, response.getBody().size());
+
+       assertEquals(
+               TransactionType.DEPOSIT,
+               response.getBody().get(0).getType());
+
+       assertEquals(
+               new BigDecimal("500.00"),
+               response.getBody().get(0).getAmount());
+
+       assertEquals(
+               TransactionType.WITHDRAWAL,
+               response.getBody().get(1).getType());
+
+       assertEquals(
+               new BigDecimal("100.00"),
+               response.getBody().get(1).getAmount());
+
+       verify(bankAccountService)
+               .getAccountForUser(
+                       userId,
+                       accountNumber);
+
+       verify(transactionService)
+               .getTransactionsForAccount(account);
+   }
 
 }
