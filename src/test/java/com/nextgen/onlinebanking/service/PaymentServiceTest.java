@@ -887,5 +887,247 @@ class PaymentServiceTest {
 
         verifyNoInteractions(bankAccountService);
     }
+
+        @Test
+    void shouldSchedulePaymentSuccessfully() {
+
+        BigDecimal amount = new BigDecimal("500.00");
+        LocalDateTime scheduledAt =
+                LocalDateTime.now().plusDays(1);
+
+        when(bankAccountService.getAccountForUser(
+                1L,
+                "ACC100001"
+        )).thenReturn(sourceAccount);
+
+        when(bankAccountService.getAccountByAccountNumber(
+                "ACC100002"
+        )).thenReturn(destinationAccount);
+
+        when(paymentRepository.save(any(Payment.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        Payment result = paymentService.schedulePayment(
+                1L,
+                "ACC100001",
+                "ACC100002",
+                amount,
+                scheduledAt,
+                "Rent payment",
+                "scheduled-key-001"
+        );
+
+        assertNotNull(result);
+        assertEquals(amount, result.getAmount());
+        assertEquals(PaymentType.SCHEDULED, result.getType());
+        assertEquals(PaymentStatus.SCHEDULED, result.getStatus());
+        assertEquals(sourceAccount, result.getSourceAccount());
+        assertEquals(destinationAccount, result.getDestinationAccount());
+        assertEquals(scheduledAt, result.getScheduledAt());
+        assertEquals("Rent payment", result.getDescription());
+        assertEquals(
+                "scheduled-key-001",
+                result.getIdempotencyKey()
+        );
+
+        verify(paymentRepository).findByIdempotencyKey(
+                "scheduled-key-001"
+        );
+
+        verify(bankAccountService).getAccountForUser(
+                1L,
+                "ACC100001"
+        );
+
+        verify(bankAccountService).getAccountByAccountNumber(
+                "ACC100002"
+        );
+
+        verify(paymentRepository).save(any(Payment.class));
+
+        verifyNoMoreInteractions(bankAccountService, paymentRepository);
+    }
+
+    @Test
+    void shouldRejectNullScheduledDate() {
+
+        IllegalArgumentException exception =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () -> paymentService.schedulePayment(
+                                1L,
+                                "ACC100001",
+                                "ACC100002",
+                                new BigDecimal("500.00"),
+                                null,
+                                "Scheduled payment",
+                                null
+                        )
+                );
+
+        assertEquals(
+                "Scheduled date and time is required",
+                exception.getMessage()
+        );
+
+        verifyNoInteractions(
+                bankAccountService,
+                paymentRepository
+        );
+    }
+
+    @Test
+    void shouldRejectPastScheduledDate() {
+
+        LocalDateTime scheduledAt =
+                LocalDateTime.now().minusMinutes(5);
+
+        IllegalArgumentException exception =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () -> paymentService.schedulePayment(
+                                1L,
+                                "ACC100001",
+                                "ACC100002",
+                                new BigDecimal("500.00"),
+                                scheduledAt,
+                                "Past payment",
+                                null
+                        )
+                );
+
+        assertEquals(
+                "Scheduled date and time must be in the future",
+                exception.getMessage()
+        );
+
+        verifyNoInteractions(
+                bankAccountService,
+                paymentRepository
+        );
+    }
+
+    @Test
+    void shouldRejectCurrentScheduledDate() {
+
+        LocalDateTime scheduledAt =
+                LocalDateTime.now();
+
+        IllegalArgumentException exception =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () -> paymentService.schedulePayment(
+                                1L,
+                                "ACC100001",
+                                "ACC100002",
+                                new BigDecimal("500.00"),
+                                scheduledAt,
+                                "Current time payment",
+                                null
+                        )
+                );
+
+        assertEquals(
+                "Scheduled date and time must be in the future",
+                exception.getMessage()
+        );
+
+        verifyNoInteractions(
+                bankAccountService,
+                paymentRepository
+        );
+    }
+
+    @Test
+    void shouldReturnExistingScheduledPaymentForSameIdempotencyKey() {
+
+        BigDecimal amount = new BigDecimal("500.00");
+
+        LocalDateTime scheduledAt =
+                LocalDateTime.now().plusDays(1);
+
+        Payment existingPayment = new Payment();
+
+        existingPayment.setAmount(amount);
+        existingPayment.setType(PaymentType.SCHEDULED);
+        existingPayment.setSourceAccount(sourceAccount);
+        existingPayment.setDestinationAccount(destinationAccount);
+        existingPayment.setScheduledAt(scheduledAt);
+        existingPayment.setIdempotencyKey(
+                "scheduled-key-002"
+        );
+        existingPayment.setStatus(PaymentStatus.SCHEDULED);
+
+        when(paymentRepository.findByIdempotencyKey(
+                "scheduled-key-002"
+        )).thenReturn(Optional.of(existingPayment));
+
+        Payment result = paymentService.schedulePayment(
+                1L,
+                "ACC100001",
+                "ACC100002",
+                amount,
+                scheduledAt,
+                "Retry scheduled payment",
+                "scheduled-key-002"
+        );
+
+        assertSame(existingPayment, result);
+
+        verify(paymentRepository)
+                .findByIdempotencyKey("scheduled-key-002");
+
+        verify(paymentRepository, never())
+                .save(any(Payment.class));
+
+        verifyNoInteractions(bankAccountService);
+    }
+
+    @Test
+    void shouldRejectDifferentScheduledPaymentUsingSameIdempotencyKey() {
+
+        BigDecimal originalAmount = new BigDecimal("500.00");
+
+        BigDecimal differentAmount = new BigDecimal("750.00");
+
+        LocalDateTime scheduledAt = LocalDateTime.now().plusDays(1);
+
+        Payment existingPayment = new Payment();
+
+        existingPayment.setAmount(originalAmount);
+        existingPayment.setType(PaymentType.SCHEDULED);
+        existingPayment.setSourceAccount(sourceAccount);
+        existingPayment.setDestinationAccount(destinationAccount);
+        existingPayment.setScheduledAt(scheduledAt);
+        existingPayment.setIdempotencyKey(
+                "scheduled-key-003");
+        existingPayment.setStatus(PaymentStatus.SCHEDULED);
+
+        when(paymentRepository.findByIdempotencyKey(
+                "scheduled-key-003")).thenReturn(Optional.of(existingPayment));
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> paymentService.schedulePayment(
+                        1L,
+                        "ACC100001",
+                        "ACC100002",
+                        differentAmount,
+                        scheduledAt,
+                        "Different scheduled payment",
+                        "scheduled-key-003"));
+
+        assertEquals(
+                "Idempotency key has already been used for a different scheduled payment",
+                exception.getMessage());
+
+        verify(paymentRepository)
+                .findByIdempotencyKey("scheduled-key-003");
+
+        verify(paymentRepository, never())
+                .save(any(Payment.class));
+
+        verifyNoInteractions(bankAccountService);
+    }
     
 }
