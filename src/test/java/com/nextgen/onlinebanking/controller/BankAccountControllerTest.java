@@ -11,6 +11,7 @@ import com.nextgen.onlinebanking.model.AccountStatus;
 import com.nextgen.onlinebanking.service.TransactionService;
 import com.nextgen.onlinebanking.model.Transaction;
 import com.nextgen.onlinebanking.model.TransactionType;
+import com.nextgen.onlinebanking.dto.TransferRequest;
 
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -338,71 +339,230 @@ class BankAccountControllerTest {
    @Test
    void shouldReturnTransactionHistoryForAuthenticatedUser() {
 
-       Long userId = 1L;
-       String accountNumber = "1234567890";
+           Long userId = 1L;
+           String accountNumber = "1234567890";
 
-       User user = new User();
-       user.setId(userId);
+           User user = new User();
+           user.setId(userId);
 
-       BankAccount account = new BankAccount();
-       account.setAccountNumber(accountNumber);
-       account.setUser(user);
+           BankAccount account = new BankAccount();
+           account.setAccountNumber(accountNumber);
+           account.setUser(user);
 
-       Transaction deposit = new Transaction();
-       deposit.setType(TransactionType.DEPOSIT);
-       deposit.setAmount(new BigDecimal("500.00"));
-       deposit.setDestinationAccount(account);
+           Transaction deposit = new Transaction();
+           deposit.setType(TransactionType.DEPOSIT);
+           deposit.setAmount(new BigDecimal("500.00"));
+           deposit.setDestinationAccount(account);
 
-       Transaction withdrawal = new Transaction();
-       withdrawal.setType(TransactionType.WITHDRAWAL);
-       withdrawal.setAmount(new BigDecimal("100.00"));
-       withdrawal.setSourceAccount(account);
+           Transaction withdrawal = new Transaction();
+           withdrawal.setType(TransactionType.WITHDRAWAL);
+           withdrawal.setAmount(new BigDecimal("100.00"));
+           withdrawal.setSourceAccount(account);
 
-       List<Transaction> transactions = Arrays.asList(deposit, withdrawal);
+           List<Transaction> transactions = Arrays.asList(deposit, withdrawal);
 
-       when(authentication.getPrincipal())
-               .thenReturn(user);
+           when(authentication.getPrincipal())
+                           .thenReturn(user);
 
-       when(bankAccountService.getAccountForUser(
-               userId,
-               accountNumber))
-               .thenReturn(account);
+           when(bankAccountService.getAccountForUser(
+                           userId,
+                           accountNumber))
+                           .thenReturn(account);
 
-       when(transactionService.getTransactionsForAccount(account))
-               .thenReturn(transactions);
+           when(transactionService.getTransactionsForAccount(account))
+                           .thenReturn(transactions);
 
-       ResponseEntity<List<Transaction>> response = bankAccountController.getTransactions(
-               accountNumber,
-               authentication);
+           ResponseEntity<List<Transaction>> response = bankAccountController.getTransactions(
+                           accountNumber,
+                           authentication);
 
-       assertEquals(200, response.getStatusCode().value());
-       assertNotNull(response.getBody());
+           assertEquals(200, response.getStatusCode().value());
+           assertNotNull(response.getBody());
 
-       assertEquals(2, response.getBody().size());
+           assertEquals(2, response.getBody().size());
 
-       assertEquals(
-               TransactionType.DEPOSIT,
-               response.getBody().get(0).getType());
+           assertEquals(
+                           TransactionType.DEPOSIT,
+                           response.getBody().get(0).getType());
 
-       assertEquals(
-               new BigDecimal("500.00"),
-               response.getBody().get(0).getAmount());
+           assertEquals(
+                           new BigDecimal("500.00"),
+                           response.getBody().get(0).getAmount());
 
-       assertEquals(
-               TransactionType.WITHDRAWAL,
-               response.getBody().get(1).getType());
+           assertEquals(
+                           TransactionType.WITHDRAWAL,
+                           response.getBody().get(1).getType());
 
-       assertEquals(
-               new BigDecimal("100.00"),
-               response.getBody().get(1).getAmount());
+           assertEquals(
+                           new BigDecimal("100.00"),
+                           response.getBody().get(1).getAmount());
 
-       verify(bankAccountService)
-               .getAccountForUser(
-                       userId,
-                       accountNumber);
+           verify(bankAccountService)
+                           .getAccountForUser(
+                                           userId,
+                                           accountNumber);
 
-       verify(transactionService)
-               .getTransactionsForAccount(account);
+           verify(transactionService)
+                           .getTransactionsForAccount(account);
    }
+   
+   @Test
+   void shouldTransferMoneyFromAuthenticatedUsersAccount() {
+
+           Long userId = 1L;
+           String sourceAccountNumber = "1234567890";
+           String destinationAccountNumber = "9876543210";
+
+           User user = new User();
+           user.setId(userId);
+
+           TransferRequest request = new TransferRequest();
+
+           request.setDestinationAccountNumber(destinationAccountNumber);
+           request.setAmount(new BigDecimal("500.00"));
+           request.setIdempotencyKey("transfer-key-001");
+
+           doNothing().when(bankAccountService).transfer(
+                           userId,
+                           sourceAccountNumber,
+                           destinationAccountNumber,
+                           new BigDecimal("500.00"),
+                           "transfer-key-001");
+
+           when(authentication.getPrincipal())
+                           .thenReturn(user);
+
+           ResponseEntity<Void> response = bankAccountController.transfer(
+                           sourceAccountNumber,
+                           request,
+                           authentication);
+
+           assertEquals(200, response.getStatusCode().value());
+           assertNull(response.getBody());
+
+           verify(bankAccountService).transfer(
+                           userId,
+                           sourceAccountNumber,
+                           destinationAccountNumber,
+                           new BigDecimal("500.00"),
+                           "transfer-key-001");
+   }
+
+   @Test
+   void shouldRejectInvalidDepositAmount() {
+
+           Long userId = 1L;
+           String accountNumber = "1234567890";
+
+           User user = new User();
+           user.setId(userId);
+
+           DepositRequest request = new DepositRequest(new BigDecimal("0.00"));
+
+           when(authentication.getPrincipal())
+                           .thenReturn(user);
+
+           when(bankAccountService.deposit(
+                           userId,
+                           accountNumber,
+                           request.getAmount()))
+                           .thenThrow(new IllegalArgumentException(
+                                           "Deposit amount must be greater than zero"));
+
+           IllegalArgumentException exception = assertThrows(
+                           IllegalArgumentException.class,
+                           () -> bankAccountController.deposit(
+                                           accountNumber,
+                                           request,
+                                           authentication));
+
+           assertEquals(
+                           "Deposit amount must be greater than zero",
+                           exception.getMessage());
+
+           verify(bankAccountService)
+                           .deposit(
+                                           userId,
+                                           accountNumber,
+                                           new BigDecimal("0.00"));
+   }
+
+   @Test
+   void shouldRejectInvalidWithdrawalAmount() {
+
+           Long userId = 1L;
+           String accountNumber = "1234567890";
+
+           User user = new User();
+           user.setId(userId);
+
+           WithdrawRequest request = new WithdrawRequest(new BigDecimal("0.00"));
+
+           when(authentication.getPrincipal())
+                           .thenReturn(user);
+
+           when(bankAccountService.withdraw(
+                           userId,
+                           accountNumber,
+                           request.getAmount()))
+                           .thenThrow(new IllegalArgumentException(
+                                           "Withdrawal amount must be greater than zero"));
+
+           IllegalArgumentException exception = assertThrows(
+                           IllegalArgumentException.class,
+                           () -> bankAccountController.withdraw(
+                                           accountNumber,
+                                           request,
+                                           authentication));
+
+           assertEquals(
+                           "Withdrawal amount must be greater than zero",
+                           exception.getMessage());
+
+           verify(bankAccountService)
+                           .withdraw(
+                                           userId,
+                                           accountNumber,
+                                           new BigDecimal("0.00"));
+   }
+
+   @Test
+   void shouldUseAuthenticatedUserIdWhenGettingAccount() {
+
+           Long authenticatedUserId = 1L;
+           String accountNumber = "1234567890";
+
+           User user = new User();
+           user.setId(authenticatedUserId);
+
+           BankAccount account = new BankAccount();
+           account.setAccountNumber(accountNumber);
+           account.setUser(user);
+
+           when(authentication.getPrincipal())
+                           .thenReturn(user);
+
+           when(bankAccountService.getAccountForUser(
+                           authenticatedUserId,
+                           accountNumber))
+                           .thenReturn(account);
+
+           ResponseEntity<BankAccount> response = bankAccountController.getAccount(
+                           accountNumber,
+                           authentication);
+
+           assertEquals(200, response.getStatusCode().value());
+           assertNotNull(response.getBody());
+
+           assertEquals(
+                           accountNumber,
+                           response.getBody().getAccountNumber());
+
+           verify(bankAccountService, times(1))
+                           .getAccountForUser(
+                                           eq(authenticatedUserId),
+                                           eq(accountNumber));
+   }
+
 
 }
