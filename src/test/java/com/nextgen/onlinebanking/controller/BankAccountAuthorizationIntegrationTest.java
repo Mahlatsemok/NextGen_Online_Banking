@@ -808,51 +808,51 @@ void shouldReturnTransactionHistoryForAuthenticatedUser()
 
 @Test
 void shouldRejectUserFromAccessingAnotherUsersTransactionHistory()
-        throws Exception {
+                throws Exception {
 
-    User owner = new User(
-            "John",
-            "Owner",
-            "owner@example.com",
-            passwordEncoder.encode("Password123"));
+        User owner = new User(
+                        "John",
+                        "Owner",
+                        "owner@example.com",
+                        passwordEncoder.encode("Password123"));
 
-    owner.setRole(UserRole.USER);
-    userRepository.save(owner);
+        owner.setRole(UserRole.USER);
+        userRepository.save(owner);
 
-    User otherUser = new User(
-            "Jane",
-            "Other",
-            "other@example.com",
-            passwordEncoder.encode("Password123"));
+        User otherUser = new User(
+                        "Jane",
+                        "Other",
+                        "other@example.com",
+                        passwordEncoder.encode("Password123"));
 
-    otherUser.setRole(UserRole.USER);
-    userRepository.save(otherUser);
+        otherUser.setRole(UserRole.USER);
+        userRepository.save(otherUser);
 
-    BankAccount ownerAccount = new BankAccount();
+        BankAccount ownerAccount = new BankAccount();
 
-    ownerAccount.setAccountNumber("1234567890");
-    ownerAccount.setUser(owner);
-    ownerAccount.setAccountType(AccountType.CHECKING);
-    ownerAccount.setBalance(new BigDecimal("1000.00"));
-    ownerAccount.setStatus(AccountStatus.ACTIVE);
+        ownerAccount.setAccountNumber("1234567890");
+        ownerAccount.setUser(owner);
+        ownerAccount.setAccountType(AccountType.CHECKING);
+        ownerAccount.setBalance(new BigDecimal("1000.00"));
+        ownerAccount.setStatus(AccountStatus.ACTIVE);
 
-    bankAccountRepository.save(ownerAccount);
+        bankAccountRepository.save(ownerAccount);
 
-    Transaction transaction = new Transaction();
-    transaction.setType(TransactionType.DEPOSIT);
-    transaction.setAmount(new BigDecimal("500.00"));
-    transaction.setDestinationAccount(ownerAccount);
+        Transaction transaction = new Transaction();
+        transaction.setType(TransactionType.DEPOSIT);
+        transaction.setAmount(new BigDecimal("500.00"));
+        transaction.setDestinationAccount(ownerAccount);
 
-    transactionRepository.save(transaction);
+        transactionRepository.save(transaction);
 
-    String token = jwtService.generateToken(otherUser.getEmail());
+        String token = jwtService.generateToken(otherUser.getEmail());
 
-    mockMvc.perform(
-            get("/api/accounts/1234567890/transactions")
-                    .header(
-                            "Authorization",
-                            "Bearer " + token))
-            .andExpect(status().isConflict());
+        mockMvc.perform(
+                        get("/api/accounts/1234567890/transactions")
+                                        .header(
+                                                        "Authorization",
+                                                        "Bearer " + token))
+                        .andExpect(status().isConflict());
 }
 
 }
