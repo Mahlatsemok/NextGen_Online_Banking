@@ -563,4 +563,101 @@ class UserControllerTest {
                            .andExpect(status().isUnauthorized());
    }
 
+   @Test
+   void shouldRejectMissingRegistrationRequest() throws Exception {
+
+           mockMvc.perform(
+                           post("/api/auth/register")
+                                           .with(csrf())
+                                           .contentType(MediaType.APPLICATION_JSON)
+                                           .content("{}"))
+                           .andExpect(status().isBadRequest())
+                           .andExpect(jsonPath("$.status").value(400))
+                           .andExpect(jsonPath("$.error").value("VALIDATION_ERROR"))
+                           .andExpect(jsonPath("$.message")
+                                           .value("Request validation failed"));
+
+           verifyNoInteractions(userService);
+   }
+
+   @Test
+   void shouldRejectPasswordShorterThanEightCharacters() throws Exception {
+
+           String request = """
+                           {
+                               "firstName": "John",
+                               "lastName": "Doe",
+                               "email": "john.short@example.com",
+                               "password": "1234567"
+                           }
+                           """;
+
+           mockMvc.perform(
+                           post("/api/auth/register")
+                                           .with(csrf())
+                                           .contentType(MediaType.APPLICATION_JSON)
+                                           .content(request))
+                           .andExpect(status().isBadRequest())
+                           .andExpect(jsonPath("$.status").value(400))
+                           .andExpect(jsonPath("$.error").value("VALIDATION_ERROR"))
+                           .andExpect(jsonPath("$.message")
+                                           .value("Request validation failed"));
+
+           verifyNoInteractions(userService);
+   }
+
+   @Test
+   void shouldRejectMissingRegistrationFields() throws Exception {
+
+           mockMvc.perform(
+                           post("/api/auth/register")
+                                           .with(csrf())
+                                           .contentType(MediaType.APPLICATION_JSON)
+                                           .content("{}"))
+                           .andExpect(status().isBadRequest())
+                           .andExpect(jsonPath("$.status").value(400))
+                           .andExpect(jsonPath("$.error").value("VALIDATION_ERROR"))
+                           .andExpect(jsonPath("$.message")
+                                           .value("Request validation failed"));
+
+           verifyNoInteractions(userService);
+   }
+
+   @Test
+   void shouldRejectLoginWithBlankEmail() throws Exception {
+
+           LoginRequest request = new LoginRequest(
+                           "",
+                           "password123");
+
+           mockMvc.perform(
+                           post("/api/auth/login")
+                                           .with(csrf())
+                                           .contentType(MediaType.APPLICATION_JSON)
+                                           .content(objectMapper.writeValueAsString(request)))
+                           .andExpect(status().isBadRequest());
+
+           verifyNoInteractions(authenticationService);
+   }
+
+   @Test
+   void shouldRejectLoginWithMissingFields() throws Exception {
+
+           mockMvc.perform(
+                           post("/api/auth/login")
+                                           .with(csrf())
+                                           .contentType(MediaType.APPLICATION_JSON)
+                                           .content("{}"))
+                           .andExpect(status().isBadRequest())
+                           .andExpect(jsonPath("$.status").value(400))
+                           .andExpect(jsonPath("$.error").value("VALIDATION_ERROR"))
+                           .andExpect(jsonPath("$.message").value("Request validation failed"))
+                           .andExpect(jsonPath("$.errors.email").exists())
+                           .andExpect(jsonPath("$.errors.password").exists());
+
+           verifyNoInteractions(authenticationService);
+   }
+
+
+
 }
