@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -96,6 +97,69 @@ public class PaymentService {
                     type,
                     description,
                     key);
+        }
+    }
+
+    @Transactional
+    public Payment createQrPayment(
+            Long userId,
+            String sourceAccountNumber,
+            String destinationAccountNumber,
+            BigDecimal amount,
+            String description,
+            String idempotencyKey) {
+
+        validatePayment(
+                sourceAccountNumber,
+                destinationAccountNumber,
+                amount,
+                PaymentType.QR);
+
+        String key = normalizeIdempotencyKey(idempotencyKey);
+
+        if (key == null) {
+
+            return processStandardPayment(
+                    userId,
+                    sourceAccountNumber,
+                    destinationAccountNumber,
+                    amount,
+                    PaymentType.QR,
+                    description,
+                    null);
+        }
+
+        Object lock = idempotencyLocks.computeIfAbsent(
+                key,
+                ignored -> new Object());
+
+        synchronized (lock) {
+
+            Payment existingPayment = paymentRepository
+                    .findByIdempotencyKey(key)
+                    .orElse(null);
+
+            if (existingPayment != null) {
+
+                validateIdempotentRetry(
+                        existingPayment,
+                        sourceAccountNumber,
+                        destinationAccountNumber,
+                        amount,
+                        PaymentType.QR);
+
+                return existingPayment;
+            }
+
+            return processStandardPayment(
+                    userId,
+                    sourceAccountNumber,
+                    destinationAccountNumber,
+                    amount,
+                    PaymentType.QR,
+                    description,
+                    key);
+
         }
     }
     
