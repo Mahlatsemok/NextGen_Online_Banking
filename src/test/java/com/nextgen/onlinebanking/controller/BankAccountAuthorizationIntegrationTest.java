@@ -27,6 +27,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -854,5 +855,202 @@ void shouldRejectUserFromAccessingAnotherUsersTransactionHistory()
                                                         "Bearer " + token))
                         .andExpect(status().isConflict());
 }
+
+@Test
+void shouldRejectTransferRequestWithoutToken()
+        throws Exception {
+
+    String requestBody = """
+            {
+                "destinationAccountNumber": "2222222222",
+                "amount": 250.00,
+                "idempotencyKey": "missing-token-transfer-001"
+            }
+            """;
+
+    mockMvc.perform(
+            post("/api/accounts/1111111111/transfer")
+                    .contentType("application/json")
+                    .content(requestBody))
+            .andExpect(status().isUnauthorized());
+}
+
+@Test
+void shouldRejectInvalidTransferRequest()
+        throws Exception {
+
+    User user = new User(
+            "John",
+            "User",
+            "john@example.com",
+            passwordEncoder.encode("Password123"));
+
+    user.setRole(UserRole.USER);
+    userRepository.save(user);
+
+    String token = jwtService.generateToken(user.getEmail());
+
+    String requestBody = """
+            {
+                "destinationAccountNumber": "",
+                "amount": 0,
+                "idempotencyKey": ""
+            }
+            """;
+
+    mockMvc.perform(
+            post("/api/accounts/1111111111/transfer")
+                    .header(
+                            "Authorization",
+                            "Bearer " + token)
+                    .contentType("application/json")
+                    .content(requestBody))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.status").value(400))
+            .andExpect(jsonPath("$.error").value("VALIDATION_ERROR"));
+}
+
+@Test
+void shouldProcessSameTransferIdempotencyKeyOnlyOnce()
+        throws Exception {
+
+    User user = new User(
+            "John",
+            "User",
+            "john@example.com",
+            passwordEncoder.encode("Password123"));
+
+    user.setRole(UserRole.USER);
+    userRepository.save(user);
+
+    BankAccount sourceAccount = new BankAccount();
+    sourceAccount.setAccountNumber("1111111111");
+    sourceAccount.setUser(user);
+    sourceAccount.setAccountType(AccountType.CHECKING);
+    sourceAccount.setBalance(new BigDecimal("1000.00"));
+    sourceAccount.setStatus(AccountStatus.ACTIVE);
+
+    bankAccountRepository.save(sourceAccount);
+
+    BankAccount destinationAccount = new BankAccount();
+    destinationAccount.setAccountNumber("2222222222");
+    destinationAccount.setUser(user);
+    destinationAccount.setAccountType(AccountType.SAVINGS);
+    destinationAccount.setBalance(new BigDecimal("500.00"));
+    destinationAccount.setStatus(AccountStatus.ACTIVE);
+
+    bankAccountRepository.save(destinationAccount);
+
+    String token = jwtService.generateToken(user.getEmail());
+
+    String requestBody = """
+            {
+                "destinationAccountNumber": "2222222222",
+                "amount": 250.00,
+                "idempotencyKey": "api-idempotency-transfer-001"
+            }
+            """;
+
+    mockMvc.perform(
+            post("/api/accounts/1111111111/transfer")
+                    .header(
+                            "Authorization",
+                            "Bearer " + token)
+                    .contentType("application/json")
+                    .content(requestBody))
+            .andExpect(status().isOk());
+
+    mockMvc.perform(
+            post("/api/accounts/1111111111/transfer")
+                    .header(
+                            "Authorization",
+                            "Bearer " + token)
+                    .contentType("application/json")
+                    .content(requestBody))
+            .andExpect(status().isOk());
+
+    BankAccount updatedSource = bankAccountRepository
+            .findByAccountNumber("1111111111")
+            .orElseThrow();
+
+    BankAccount updatedDestination = bankAccountRepository
+            .findByAccountNumber("2222222222")
+            .orElseThrow();
+
+    assertEquals(
+            new BigDecimal("750.00"),
+            updatedSource.getBalance());
+
+    assertEquals(
+            new BigDecimal("750.00"),
+            updatedDestination.getBalance());
+
+    assertEquals(
+            1,
+            transactionRepository.findByIdempotencyKey(
+                    "api-idempotency-transfer-001").stream().count());
+}
+
+@Test
+void shouldExposeTransferInTransactionHistory()
+                throws Exception {
+
+        User user = new User(
+                        "John",
+                        "User",
+                        "john@example.com",
+                        passwordEncoder.encode("Password123"));
+
+        user.setRole(UserRole.USER);
+        userRepository.save(user);
+
+        BankAccount sourceAccount = new BankAccount();
+        sourceAccount.setAccountNumber("1111111111");
+        sourceAccount.setUser(user);
+        sourceAccount.setAccountType(AccountType.CHECKING);
+        sourceAccount.setBalance(new BigDecimal("1000.00"));
+        sourceAccount.setStatus(AccountStatus.ACTIVE);
+
+        bankAccountRepository.save(sourceAccount);
+
+        BankAccount destinationAccount = new BankAccount();
+        destinationAccount.setAccountNumber("2222222222");
+        destinationAccount.setUser(user);
+        destinationAccount.setAccountType(AccountType.SAVINGS);
+        destinationAccount.setBalance(new BigDecimal("500.00"));
+        destinationAccount.setStatus(AccountStatus.ACTIVE);
+
+        bankAccountRepository.save(destinationAccount);
+
+        String token = jwtService.generateToken(user.getEmail());
+
+        String requestBody = """
+                        {
+                            "destinationAccountNumber": "2222222222",
+                            "amount": 250.00,
+                            "idempotencyKey": "transaction-history-transfer-001"
+                        }
+                        """;
+
+        mockMvc.perform(
+                        post("/api/accounts/1111111111/transfer")
+                                        .header(
+                                                        "Authorization",
+                                                        "Bearer " + token)
+                                        .contentType("application/json")
+                                        .content(requestBody))
+                        .andExpect(status().isOk());
+
+        mockMvc.perform(
+                        get("/api/accounts/1111111111/transactions")
+                                        .header(
+                                                        "Authorization",
+                                                        "Bearer " + token))
+                        .andExpect(status().isOk())
+                        .andExpect(jsonPath("$.length()").value(1))
+                        .andExpect(jsonPath("$[0].type").value("TRANSFER"))
+                        .andExpect(jsonPath("$[0].amount").value(250.00));
+}
+
 
 }
