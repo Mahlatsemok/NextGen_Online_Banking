@@ -40,19 +40,19 @@ public class GlobalExceptionHandler {
     }
     
     @ExceptionHandler(InvalidCredentialsException.class)
-public ResponseEntity<ApiErrorResponse> handleInvalidCredentials(
-                InvalidCredentialsException exception) {
+    public ResponseEntity<ApiErrorResponse> handleInvalidCredentials(
+                    InvalidCredentialsException exception) {
 
-        ApiErrorResponse response = new ApiErrorResponse(
-                        HttpStatus.UNAUTHORIZED.value(),
-                        "UNAUTHORIZED",
-                        exception.getMessage(),
-                        null);
+            ApiErrorResponse response = new ApiErrorResponse(
+                            HttpStatus.UNAUTHORIZED.value(),
+                            "UNAUTHORIZED",
+                            exception.getMessage(),
+                            null);
 
-        return ResponseEntity
-                        .status(HttpStatus.UNAUTHORIZED)
-                        .body(response);
-}
+            return ResponseEntity
+                            .status(HttpStatus.UNAUTHORIZED)
+                            .body(response);
+    }
 
 
     @ExceptionHandler(IllegalArgumentException.class)
@@ -83,6 +83,21 @@ public ResponseEntity<ApiErrorResponse> handleInvalidCredentials(
 
             return ResponseEntity
                             .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                            .body(response);
+    }
+
+    @ExceptionHandler(InvalidQrCodeException.class)
+    public ResponseEntity<ApiErrorResponse> handleInvalidQrCode(
+                    InvalidQrCodeException exception) {
+
+            ApiErrorResponse response = new ApiErrorResponse(
+                            HttpStatus.BAD_REQUEST.value(),
+                            "INVALID_QR_CODE",
+                            exception.getMessage(),
+                            null);
+
+            return ResponseEntity
+                            .status(HttpStatus.BAD_REQUEST)
                             .body(response);
     }
     
