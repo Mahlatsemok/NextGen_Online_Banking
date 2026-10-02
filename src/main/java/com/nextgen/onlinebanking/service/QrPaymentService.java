@@ -1,6 +1,7 @@
 package com.nextgen.onlinebanking.service;
 
 import com.nextgen.onlinebanking.model.Payment;
+import com.nextgen.onlinebanking.exception.InvalidQrCodeException;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -40,7 +41,7 @@ public class QrPaymentService {
     String decodeDestinationAccount(String qrCode) {
 
         if (qrCode == null || qrCode.isBlank()) {
-            throw new IllegalArgumentException(
+            throw new InvalidQrCodeException(
                     "QR code is required"
             );
         }
@@ -48,7 +49,7 @@ public class QrPaymentService {
         String normalizedCode = qrCode.trim();
 
         if (!normalizedCode.startsWith(QR_PREFIX)) {
-            throw new IllegalArgumentException(
+            throw new InvalidQrCodeException(
                     "Invalid QR payment code"
             );
         }
@@ -59,7 +60,7 @@ public class QrPaymentService {
         if (accountNumber.isBlank()
                 || accountNumber.contains(":")) {
 
-            throw new IllegalArgumentException(
+            throw new InvalidQrCodeException(
                     "Invalid QR payment code"
             );
         }
