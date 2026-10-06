@@ -134,8 +134,8 @@ class AuthenticationServiceTest {
              "wrongPassword",
              user.getPassword())).thenReturn(false);
 
-        IllegalArgumentException exception = assertThrows(
-             IllegalArgumentException.class,
+        InvalidCredentialsException exception = assertThrows(
+             InvalidCredentialsException.class,
              () -> authenticationService.authenticate(
                      "john@example.com",
                      "wrongPassword"));

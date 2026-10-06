@@ -50,7 +50,7 @@ public class AuthenticationService {
 
             userRepository.save(user);
 
-            throw new IllegalArgumentException(
+            throw new InvalidCredentialsException(
                     "Invalid email or password");
         }
 
