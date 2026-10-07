@@ -3,6 +3,10 @@ package com.nextgen.onlinebanking.repository;
 import com.nextgen.onlinebanking.model.AccountType;
 import com.nextgen.onlinebanking.model.BankAccount;
 import com.nextgen.onlinebanking.model.User;
+import com.nextgen.onlinebanking.repository.PaymentRepository;
+import com.nextgen.onlinebanking.repository.PaymentRequestRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -21,6 +25,28 @@ class BankAccountRepositoryTest {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private PaymentRepository paymentRepository;
+
+    @Autowired
+    private PaymentRequestRepository paymentRequestRepository;
+
+
+    @BeforeEach
+    void cleanDatabase() {
+        paymentRepository.deleteAll();
+        paymentRepository.flush();
+
+        paymentRequestRepository.deleteAll();
+        paymentRequestRepository.flush();
+
+        repository.deleteAll();
+        repository.flush();
+
+        userRepository.deleteAll();
+        userRepository.flush();
+    }
 
     @Test
     void shouldSaveAndFindBankAccountById() {
