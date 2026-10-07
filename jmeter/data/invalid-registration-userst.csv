@@ -1,0 +1,11 @@
+firstName,lastName,email,password,phoneNumber
+Invalid1,User,invalid-email-1,TestPassword123!,0821234561
+Invalid2,User,invalid-email-2,TestPassword123!,0821234562
+Invalid3,User,invalid-email-3,TestPassword123!,0821234563
+Invalid4,User,invalid-email-4,TestPassword123!,0821234564
+Invalid5,User,invalid-email-5,TestPassword123!,0821234565
+Invalid6,User,invalid-email-6,TestPassword123!,0821234566
+Invalid7,User,invalid-email-7,TestPassword123!,0821234567
+Invalid8,User,invalid-email-8,TestPassword123!,0821234568
+Invalid9,User,invalid-email-9,TestPassword123!,0821234569
+Invalid10,User,invalid-email-10,TestPassword123!,0821234570
