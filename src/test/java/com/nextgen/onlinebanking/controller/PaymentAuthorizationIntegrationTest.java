@@ -10,6 +10,7 @@ import com.nextgen.onlinebanking.repository.PaymentRepository;
 import com.nextgen.onlinebanking.repository.TransactionRepository;
 import com.nextgen.onlinebanking.repository.UserRepository;
 import com.nextgen.onlinebanking.security.JwtService;
+import com.nextgen.onlinebanking.repository.PaymentRequestRepository;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -50,6 +51,9 @@ class PaymentAuthorizationIntegrationTest {
     private PaymentRepository paymentRepository;
 
     @Autowired
+    private PaymentRequestRepository paymentRequestRepository;
+
+    @Autowired
     private TransactionRepository transactionRepository;
 
     @BeforeEach
@@ -57,6 +61,9 @@ class PaymentAuthorizationIntegrationTest {
 
         paymentRepository.deleteAll();
         paymentRepository.flush();
+
+        paymentRequestRepository.deleteAll();
+        paymentRequestRepository.flush();
 
         transactionRepository.deleteAll();
         transactionRepository.flush();
