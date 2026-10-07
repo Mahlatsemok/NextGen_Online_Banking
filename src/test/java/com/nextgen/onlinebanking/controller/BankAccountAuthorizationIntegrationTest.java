@@ -11,6 +11,7 @@ import com.nextgen.onlinebanking.repository.BankAccountRepository;
 import com.nextgen.onlinebanking.repository.TransactionRepository;
 import com.nextgen.onlinebanking.model.Transaction;
 import com.nextgen.onlinebanking.model.TransactionType;
+import com.nextgen.onlinebanking.repository.PaymentRepository;
 
 import java.math.BigDecimal;
 
@@ -51,8 +52,14 @@ class BankAccountAuthorizationIntegrationTest {
     @Autowired
     private TransactionRepository transactionRepository;
 
+    @Autowired
+    private PaymentRepository paymentRepository;
+
    @BeforeEach
    void setUp() {
+        paymentRepository.deleteAll();
+        paymentRepository.flush();
+
        transactionRepository.deleteAll();
        transactionRepository.flush();
     
